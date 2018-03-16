@@ -1,0 +1,11 @@
+{
+  "serverAddress": "http://plex.lan:32400",
+  "serverToken": "",
+  "interfaceToken": "",
+  "librarySection": "Music",
+  "searchResults": {
+    "artist": 10,
+    "album": 10,
+    "track": 20
+  }
+}

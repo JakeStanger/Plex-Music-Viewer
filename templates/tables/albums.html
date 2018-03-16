@@ -1,0 +1,30 @@
+{% if not is_search %}
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('artist') }}">Artists</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ title }}</li>
+        </ol>
+    </nav>
+{% endif %}
+<table class="table table-striped">
+    <tbody id="album_table">
+        <tr>
+            <th>Album Name</th>
+            <th>Year</th>
+            <th>Track Count</th>
+            {% if is_search %}
+                <th>Artist</th>
+            {% endif %}
+        </tr>
+        {% for album in albums %}
+            <tr>
+                <td><a href="{{ url_for('album', artist_name=album.parentTitle, album_name=album.title) }}">{{ album.title }}</a></td>
+                <td>{{ album.year }}</td>
+                <td>{{ album.tracks()|length }}</td>
+                {% if is_search %}
+                    <td><a href="{{ url_for('artist', artist_name=album.parentTitle) }}">{{ album.parentTitle }}</a></td>
+                {% endif %}
+            </tr>
+        {% endfor %}
+    </tbody>
+</table>

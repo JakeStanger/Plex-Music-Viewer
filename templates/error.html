@@ -1,0 +1,17 @@
+{% extends "layout.html" %}
+
+{% block head %}
+{#    <link rel="stylesheet" href="{{ url_for('static', filename='error.css')}}">#}
+{% endblock %}
+
+{% block body %}
+   <div class="row justify-content-md-center">
+        <div class="col col-md-7">
+            <h1>{{ code }} - {{ message }}</h1>
+        </div>
+        <div class="col col-md-5">
+{#            <img src="{{ url_for('static', filename='img/%s.png' % code) }}" class="img-fluid" alt="Error">#}
+            <img class="img-fluid" src="http://via.placeholder.com/700x500">
+        </div>
+    </div>
+{% endblock %}

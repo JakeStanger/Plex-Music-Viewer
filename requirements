@@ -1,0 +1,7 @@
+plexapi
+flask
+xmltodict
+simplejson
+pillow
+mod_wsgi
+flask-mysql

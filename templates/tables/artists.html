@@ -1,0 +1,14 @@
+<table class="table table-striped">
+    <tbody id="artist_table">
+        <tr>
+            <th>Artist Name</th>
+            <th>Album Count</th>
+        </tr>
+        {% for artist in artists %}
+            <tr>
+                <td><a href="{{ url_for('artist', artist_name=artist.title) }}">{{ artist.title }}</a></td>
+                <td>{{ artist.albums()|length }}</td>
+            </tr>
+        {% endfor %}
+    </tbody>
+</table>

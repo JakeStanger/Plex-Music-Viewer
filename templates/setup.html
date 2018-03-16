@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <!-- Latest compiled and minified CSS -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.7/css/bootstrap.min.css">
+    <!-- jQuery library -->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+    <!-- Latest compiled JavaScript -->
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+
+    <link href="https://fonts.googleapis.com/css?family=Open+Sans:400" rel="stylesheet">
+
+    <title>Initial Setup - Plex Music Downloader</title>
+
+    <style>
+        body{
+            background-color: #eee;
+        }
+
+        .row {
+            padding: 20px;
+        }
+    </style>
+    <script>
+        function displayMessage()
+        {
+            const msg = '{{msg}}';
+            if(msg)
+            {
+                $('#message').html(msg);
+                $('#message').toggle();
+            }
+        }
+    </script>
+</head>
+<body onload="displayMessage()">
+<div class="row">
+    <div class="col-md-4 col-md-offset-4">
+        <h1 class="text-center">Setup</h1>
+        <h5 class="text-center">There's a few settings you've got to sort out before you're good to go.</h5>
+        <div class="alert alert-danger" id="message" role="alert" style="display: none"></div>
+        <form action="/updateSettings" method="post">
+            <h2>Connection Settings</h2>
+            <div class="form-group">
+                <label for="serverAddress">Server Address</label>
+                <input type="url" class="form-control" name="serverAddress" value="http://localhost:32400" required>
+		        <small class="form-text text-muted">This can be <b>http://plex.tv</b> if you do not have a direct link to your own server.</small>
+            </div>
+            <div class="form-group">
+                <label for="serverToken">Server Token</label>
+                <input type="password" class="form-control" name="serverToken" placeholder="This is your Plex server token" required>
+                <small class="form-text text-muted">You will have to find this through your official Plex client.</small>
+            </div>
+            <div class="form-group">
+                <label for="interfaceToken">Interface Token</label>
+                <input type="password" class="form-control" name="interfaceToken" placeholder="This is a password of your choice" required>
+            </div>
+            <div class="form-group">
+                <label for="librarySection">Library Section</label>
+                <input class="form-control" name="librarySection" value="Music" required>
+            </div>
+            <hr>
+            <h2>Preferences</h2>
+            <div class="form-group">
+                <label for="artistResults">Artist Search Results</label>
+                <input type="number" class="form-control" name="artistResults" value="10" required>
+            </div>
+            <div class="form-group">
+                <label for="albumResults">Album Search Results</label>
+                <input type="number" class="form-control" name="albumResults" value="10" required>
+            </div>
+            <div class="form-group">
+                <label for="trackResults">Track Search Results</label>
+                <input type="number" class="form-control" name="trackResults" value="20" required>
+            </div>
+            <hr>
+            <button type="submit" class="btn btn-default">Save settings</button>
+            <p>You can edit the settings any time by editing <b>settings.json</b> in the application install directory.</p>
+        </form>
+    </div>
+</div>
+</body>
+</html>

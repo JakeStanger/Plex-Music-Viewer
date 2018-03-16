@@ -1,0 +1,68 @@
+{% extends "layout.html" %}
+
+{% block head %}
+{#    <link rel="stylesheet" href="{{ url_for('static', filename='accounts.css')}}">#}
+{% endblock %}
+
+{% block body %}
+    {% if error %}<p class=error><strong>Error:</strong> {{ error }}{% endif %}
+
+    <div class="row justify-content-md-center">
+        <div class="col col-md-4">
+            <ul class="nav nav-tabs" id="myTab" role="tablist">
+              <li class="nav-item">
+                <a class="nav-link active" id="login-tab" data-toggle="tab" href="#login" role="tab" aria-controls="login" aria-selected="true">Login</a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link" id="signup-tab" data-toggle="tab" href="#signup" role="tab" aria-controls="signup" aria-selected="false">Signup</a>
+              </li>
+            </ul>
+        </div>
+    </div>
+    <div class="row justify-content-md-center">
+        <div class="col col-md-4">
+            <div class="tab-content" id="myTabContent">
+                <!-- Login -->
+                <div class="tab-pane show active" id="login" role="tabpanel" aria-labelledby="login-tab">
+                    <form action="{{ url_for('login') }}" method=post class="form-signin">
+                        <h2 class="form-signin-heading">Sign in</h2>
+
+                        <label for="inputUsername" class="sr-only">Username</label>
+                        <input name="username" id="inputUsername" class="form-control" placeholder="Username" required autofocus>
+
+                        <label for="inputPassword" class="sr-only">Password</label>
+                        <input name="password" type="password" id="inputPassword" class="form-control" placeholder="Password" required>
+
+                        <div class="checkbox">
+                          <label>
+                            <input name="remember" type="checkbox"> Remember me
+                          </label>
+                        </div>
+                        <button class="btn btn-lg btn-primary btn-block" type="submit">Sign in</button>
+                    </form>
+                </div>
+                <!-- Sign up -->
+                <div class="tab-pane" id="signup" role="tabpanel" aria-labelledby="signup-tab">
+                    <form action="{{ url_for('sign_up') }}" method=post class="form-signin">
+                        <h2 class="form-signin-heading">Sign up</h2>
+
+                        <label for="inputUsername" class="sr-only">Username</label>
+                        <input name='username' id="inputUsername" class="form-control" placeholder="Username" required autofocus>
+
+                        <label for="inputPassword" class="sr-only">Password</label>
+                        <input name='password' type="password" id="inputPassword" class="form-control" placeholder="Password" required>
+                        <div class="checkbox">
+                            <label>
+                                <input name="remember" type="checkbox"> Remember me
+                            </label>
+                        </div>
+                        <button class="btn btn-lg btn-primary btn-block" type="submit">Sign up</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+
+{% endblock %}
