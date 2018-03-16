@@ -17,6 +17,7 @@ class Value:
 
 
 def call_proc(proc: str, values):
+    global mysql
     if not mysql:
         init()
 
@@ -32,6 +33,7 @@ def call_proc(proc: str, values):
 
 
 def exec_sql(query: str, fetch_one: bool = False, fetch_all: bool = False, commit: bool = False):
+    global mysql
     if not mysql:
         init()
 

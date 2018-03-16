@@ -25,12 +25,6 @@ app.url_map.strict_slashes = False
 app.jinja_env.globals.update(int=int)
 app.jinja_env.globals.update(get_additional_track_data=get_additional_track_data)
 
-# MySQL configuration TODO Move all to config file
-app.config['MYSQL_DATABASE_USER'] = ''
-app.config['MYSQL_DATABASE_PASSWORD'] = ''
-app.config['MYSQL_DATABASE_DB'] = ''
-app.config['MYSQL_DATABASE_HOST'] = ''
-
 # Cache configuration
 CACHE_TIMEOUT = 300
 cache = Cache(app, config={'CACHE_TYPE': 'simple'})
@@ -75,7 +69,7 @@ login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
 
-app.config.update(DEBUG=True, SECRET_KEY="\x1e\x91\xf0\x94\xb4\xd6\xa8\xdb\x06\xc7Z\xaf\xe0\xd2l\xb5\xccI\x1ap\xe6@'X")
+
 
 # Load settings
 settings = load(open('settings.json'))
@@ -84,6 +78,13 @@ if settings['serverToken']:
     plex = PlexServer(settings['serverAddress'], settings['serverToken'])
     music = plex.library.section(settings['librarySection'])
     settings['musicLibrary'] = music.locations[0]
+
+    app.config['MYSQL_DATABASE_USER'] = settings['database']['user']
+    app.config['MYSQL_DATABASE_PASSWORD'] = settings['database']['password']
+    app.config['MYSQL_DATABASE_DB'] = settings['database']['database']
+    app.config['MYSQL_DATABASE_HOST'] = settings['database']['hostname']
+
+    app.config.update(DEBUG=True, SECRET_KEY=settings['secret_key'])
 
 
 def get_app():
