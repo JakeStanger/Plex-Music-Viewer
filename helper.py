@@ -1,6 +1,14 @@
 from flask import abort, Response, request
 
 
+def generate_secret_key():
+    from base64 import b64encode
+    from os import urandom
+
+    random_bytes = urandom(64)
+    return b64encode(random_bytes).decode('utf-8')
+
+
 def throw_error(num, error):
     """
     Throws an HTTP error
