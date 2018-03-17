@@ -1,20 +1,24 @@
-from plexapi.server import PlexServer
-from flask import Flask, render_template, send_file, redirect, url_for, session, flash
-from plex_api_extras import getDownloadLocationPOST, get_additional_track_data
-from zipfile import ZipFile
-from os import path, symlink, listdir, makedirs
-from simplejson import dumps, load
-from PIL import Image
-from io import BytesIO
-from urllib.request import urlopen, quote
-from helper import *
-from flaskext.mysql import MySQL
-from werkzeug.security import generate_password_hash, check_password_hash
-from accounts import User, Permission, PermissionType
-from flask_login import LoginManager, login_required, login_user, logout_user, current_user, utils
 from functools import wraps
-import plex_helper as ph
+from io import BytesIO
+from os import path, symlink, makedirs, environ
+from timeit import default_timer as timer
+from urllib.request import urlopen, quote
+from zipfile import ZipFile
+
+from PIL import Image
+from flask import Flask, render_template, send_file, redirect, url_for, flash
+from flask_login import LoginManager, login_required, login_user, logout_user
+from plexapi.library import Library
+
+from plexapi.server import PlexServer
+from simplejson import dumps, load
+from werkzeug.security import generate_password_hash, check_password_hash
+
 import database as db
+import plex_helper as ph
+from accounts import User, Permission, PermissionType
+from helper import *
+from plex_api_extras import getDownloadLocationPOST, get_additional_track_data
 
 # Flask configuration
 app = Flask(__name__)
@@ -23,6 +27,34 @@ app.url_map.strict_slashes = False
 
 app.jinja_env.globals.update(int=int)
 app.jinja_env.globals.update(get_additional_track_data=get_additional_track_data)
+
+
+def listen(msg):
+    if msg['type'] == 'timeline':
+        timeline_entry = msg['TimelineEntry'][0]
+        # print(dumps(timeline_entry, indent=2))
+
+        data = {
+            'section_id': timeline_entry['sectionID'],
+            'library_key': timeline_entry['itemID'],
+            'type': ph.Type(timeline_entry['type']).name,
+            'deleted': timeline_entry['metadataState'] == 'deleted'
+        }
+
+        # Avoid duplicates
+        for entry in db.get_cache():
+            if entry['library_key'] == data['library_key'] and entry['section_id'] == data['section_id']:
+                return
+
+        db.insert_into_cache(data)
+
+    if msg['type'] == 'status':
+        status_notification = msg['StatusNotification'][0]
+        if status_notification['notificationName'] == "LIBRARY_UPDATE":
+            cache = db.get_cache()
+            if len(cache) > 0:
+                db.update_after_refresh(cache)
+                db.clear_cache()
 
 
 # @app.before_request
@@ -48,7 +80,6 @@ login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
 
-
 # Load settings
 settings = load(open('settings.json'))
 
@@ -64,6 +95,8 @@ if settings['serverToken']:
 
     app.config.update(DEBUG=True, SECRET_KEY=settings['secret_key'])
 
+    plex.startAlertListener(listen)
+
 
 def get_app():
     global app
@@ -75,7 +108,7 @@ def get_settings():
     return settings
 
 
-def get_music():
+def get_music() -> Library:
     global music
     return music
 
@@ -178,14 +211,6 @@ def error():
     return render_template('error.html', code=str(402), message="You do not have permission to view this page.")
 
 
-@app.route('/test')
-@login_required
-@require_permission(PermissionType.MUSIC, Permission.VIEW)
-def protected():
-    return "Logged in as: <b>%s</b> with perms %r, %r, %r" \
-           % (current_user.username, current_user.music_perms, current_user.movie_perms, current_user.tv_perms)
-
-
 @app.route('/')
 def index():
     return redirect(url_for('artist'))
@@ -200,7 +225,8 @@ def artist(artist_name=None):
         artist = ph.get_artist(artist_name)
         return render_template('table.html', albums=artist.albums(), title=artist.title)
     else:
-        return render_template('table.html', artists=music.all(), title="Artists")
+        return render_template('table.html', artists=[ph.ArtistWrapper(artist) for artist in music.all()],
+                               title="Artists")
 
 
 @app.route("/artist/<artist_name>/<album_name>")
@@ -456,21 +482,20 @@ def image(thumb_id, width=None):
 @login_required
 @admin_required
 def update_database():
-    # Empty tables because I'm lazy
-    # db.delete('tracks')
-    # db.delete('albums')
-    # db.delete('artists')
-
+    # Return data
     updated = {
         'artists': [],
         'albums': [],
         'tracks': []
     }
 
-    artists = [ph.ArtistWrapper(artist) for artist in music.all()]
+    # artists = [ph.ArtistWrapper(artist) for artist in music.all()]
+    artists = music.all()
     num_artists = len(artists)
     i = 1
-    for artist in artists:
+    for a in artists:
+        artist = ph.ArtistWrapper(a)
+
         print("(%r/%r): %s" % (i, num_artists, artist.title))
         i += 1
 
@@ -479,8 +504,8 @@ def update_database():
         artist_values = [
             db.Value('library_key', key_num(artist.key)),
             db.Value('name', artist.title.replace("'", "%27")),
-            db.Value('name_sort', artist.titleSort.replace("'", "%27"), ),
-            db.Value('thumb', path.basename(artist.thumb) if artist.thumb else 0, ),
+            db.Value('name_sort', artist.titleSort.replace("'", "%27")),
+            db.Value('thumb', path.basename(artist.thumb) if artist.thumb else 0),
             db.Value('album_count', num_albums)
         ]
 
@@ -536,13 +561,6 @@ def update_database():
                     updated['tracks'].append(track.title)
 
     return dumps(updated)
-
-
-@app.route('/lidarr', methods=['POST'])  # TODO Run partial database update, get data from webhook, (remove cron?)
-def plex():
-    with open("test.json", "a") as f:
-        f.write(dumps(request.json, indent=4))
-    return dumps(200)
 
 
 # TODO Tidy function
@@ -609,5 +627,4 @@ def setup():
 
 # --START OF PROGRAM--
 if __name__ == "__main__":
-    app.run()
-    app.debug = True
+    app.run(debug=True)
