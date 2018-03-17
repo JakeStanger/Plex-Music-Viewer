@@ -2,7 +2,7 @@ from plexapi.server import PlexServer
 from flask import Flask, render_template, send_file, redirect, url_for, session, flash
 from plex_api_extras import getDownloadLocationPOST, get_additional_track_data
 from zipfile import ZipFile
-from os import path, symlink, listdir
+from os import path, symlink, listdir, makedirs
 from simplejson import dumps, load
 from PIL import Image
 from io import BytesIO
@@ -431,7 +431,9 @@ def torrent(artist_name, album_name):
 def zip(artist_name, album_name):
     album = ph.get_album(artist_name, album_name)
 
-    filename = "zips/%s.zip" % (album_name)  # TODO add artist name, make directories
+    filename = "zips/%s/%s.zip" % (artist_name, album_name)
+    if not path.exists(path.dirname(filename)):
+        makedirs(path.dirname(filename))
 
     if not path.isfile(filename):
         z = ZipFile(filename, 'w')
