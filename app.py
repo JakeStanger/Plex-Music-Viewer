@@ -13,7 +13,6 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from accounts import User, Permission, PermissionType
 from flask_login import LoginManager, login_required, login_user, logout_user, current_user, utils
 from functools import wraps
-from flask_cache import Cache
 import plex_helper as ph
 import database as db
 
@@ -25,27 +24,7 @@ app.url_map.strict_slashes = False
 app.jinja_env.globals.update(int=int)
 app.jinja_env.globals.update(get_additional_track_data=get_additional_track_data)
 
-# Cache configuration
-CACHE_TIMEOUT = 300
-cache = Cache(app, config={'CACHE_TYPE': 'simple'})
-# cache = SimpleCache()
-#
-#
-# class Cached(object):
-#     def __init__(self, timeout=None):
-#         self.timeout = timeout or CACHE_TIMEOUT
-#
-#     def __call__(self, f):
-#         def cached_wrapper(*args, **kwargs):
-#             response = cache.get(request.path)
-#             if response is None:
-#                 response = f(*args, **kwargs)
-#                 cache.set(request.path, response, self.timeout)
-#             return response
-#
-#         return cached_wrapper
-#
-#
+
 # @app.before_request
 # def return_cached():
 #     if not request.values:
@@ -216,7 +195,6 @@ def index():
 @app.route("/artist/<artist_name>")
 @login_required
 @require_permission(PermissionType.MUSIC, Permission.VIEW)
-@cache.cached(timeout=CACHE_TIMEOUT)
 def artist(artist_name=None):
     if artist_name:
         artist = ph.get_artist(artist_name)
@@ -228,7 +206,6 @@ def artist(artist_name=None):
 @app.route("/artist/<artist_name>/<album_name>")
 @login_required
 @require_permission(PermissionType.MUSIC, Permission.VIEW)
-@cache.cached(timeout=CACHE_TIMEOUT)
 def album(artist_name, album_name):
     album = ph.get_album(artist_name, album_name)
     return render_template('table.html', tracks=album.tracks(), title=album.title,
@@ -239,7 +216,6 @@ def album(artist_name, album_name):
 @app.route("/artist/<artist_name>/<album_name>/<track_name>/<download>")
 @login_required
 @require_permission(PermissionType.MUSIC, Permission.VIEW)
-@cache.cached(timeout=CACHE_TIMEOUT)
 def track(artist_name, album_name, track_name, download=False):
     track = ph.get_track(artist_name, album_name, track_name)
 
@@ -448,7 +424,6 @@ def zip(artist_name, album_name):
 @app.route('/image/<path:thumb_id>/<width>')
 # @login_required
 # @require_permission(PermissionType.MUSIC, Permission.VIEW)
-@cache.cached(timeout=CACHE_TIMEOUT)
 def image(thumb_id, width=None):
     """
     Returns the image for the given thumb-id. It is important to
