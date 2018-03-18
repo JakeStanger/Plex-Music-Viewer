@@ -1,21 +1,25 @@
-from plexapi.server import PlexServer
-from flask import Flask, render_template, send_file, redirect, url_for, session, flash
-from plex_api_extras import getDownloadLocationPOST, get_additional_track_data
-from zipfile import ZipFile
-from os import path, symlink, listdir, makedirs
-from simplejson import dumps, load
-from PIL import Image
-from io import BytesIO
-from urllib.request import urlopen, quote
-from helper import *
-from flaskext.mysql import MySQL
-from werkzeug.security import generate_password_hash, check_password_hash
-from accounts import User, Permission, PermissionType
-from flask_login import LoginManager, login_required, login_user, logout_user, current_user, utils
 from functools import wraps
-from flask_cache import Cache
-import plex_helper as ph
+from io import BytesIO
+from os import path, symlink, makedirs, environ
+from timeit import default_timer as timer
+from urllib.request import urlopen
+from urllib.parse import quote
+from zipfile import ZipFile
+
+from PIL import Image
+from flask import Flask, render_template, send_file, redirect, url_for, flash
+from flask_login import LoginManager, login_required, login_user, logout_user
+from plexapi.library import Library
+
+from plexapi.server import PlexServer
+from simplejson import dumps, load
+from werkzeug.security import generate_password_hash, check_password_hash
+
 import database as db
+import plex_helper as ph
+from accounts import User, Permission, PermissionType
+from helper import *
+from plex_api_extras import getDownloadLocationPOST, get_additional_track_data
 
 # Flask configuration
 app = Flask(__name__)
@@ -25,27 +29,41 @@ app.url_map.strict_slashes = False
 app.jinja_env.globals.update(int=int)
 app.jinja_env.globals.update(get_additional_track_data=get_additional_track_data)
 
-# Cache configuration
-CACHE_TIMEOUT = 300
-cache = Cache(app, config={'CACHE_TYPE': 'simple'})
-# cache = SimpleCache()
-#
-#
-# class Cached(object):
-#     def __init__(self, timeout=None):
-#         self.timeout = timeout or CACHE_TIMEOUT
-#
-#     def __call__(self, f):
-#         def cached_wrapper(*args, **kwargs):
-#             response = cache.get(request.path)
-#             if response is None:
-#                 response = f(*args, **kwargs)
-#                 cache.set(request.path, response, self.timeout)
-#             return response
-#
-#         return cached_wrapper
-#
-#
+
+def trigger_database_update():
+    cache = db.get_cache()
+    if len(cache) > 0:
+        db.update_after_refresh(cache)
+        db.clear_cache()
+
+
+def listen(msg):
+
+    if msg['type'] == 'timeline':
+        timeline_entry = msg['TimelineEntry'][0]
+
+        state = timeline_entry['metadataState']
+        if state != 'created' and state != 'deleted':
+            return
+
+        data = {
+            'section_id': timeline_entry['sectionID'],
+            'library_key': timeline_entry['itemID'],
+            'type': ph.Type(timeline_entry['type']).name,
+            'deleted': state == 'deleted'
+        }
+
+        # Avoid duplicates
+        for entry in db.get_cache():
+            if entry['library_key'] == data['library_key'] and entry['section_id'] == data['section_id']:
+                return
+
+        db.insert_into_cache(data)
+
+    if msg['type'] == 'backgroundProcessingQueue':
+        trigger_database_update()
+
+
 # @app.before_request
 # def return_cached():
 #     if not request.values:
@@ -69,7 +87,6 @@ login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
 
-
 # Load settings
 settings = load(open('settings.json'))
 
@@ -83,7 +100,9 @@ if settings['serverToken']:
     app.config['MYSQL_DATABASE_DB'] = settings['database']['database']
     app.config['MYSQL_DATABASE_HOST'] = settings['database']['hostname']
 
-    app.config.update(DEBUG=True, SECRET_KEY=settings['secret_key'])
+    app.config.update(SECRET_KEY=settings['secret_key'])
+
+    plex.startAlertListener(listen)
 
 
 def get_app():
@@ -96,7 +115,7 @@ def get_settings():
     return settings
 
 
-def get_music():
+def get_music() -> Library:
     global music
     return music
 
@@ -199,14 +218,6 @@ def error():
     return render_template('error.html', code=str(402), message="You do not have permission to view this page.")
 
 
-@app.route('/test')
-@login_required
-@require_permission(PermissionType.MUSIC, Permission.VIEW)
-def protected():
-    return "Logged in as: <b>%s</b> with perms %r, %r, %r" \
-           % (current_user.username, current_user.music_perms, current_user.movie_perms, current_user.tv_perms)
-
-
 @app.route('/')
 def index():
     return redirect(url_for('artist'))
@@ -216,22 +227,33 @@ def index():
 @app.route("/artist/<artist_name>")
 @login_required
 @require_permission(PermissionType.MUSIC, Permission.VIEW)
-@cache.cached(timeout=CACHE_TIMEOUT)
 def artist(artist_name=None):
     if artist_name:
-        artist = ph.get_artist(artist_name)
-        return render_template('table.html', albums=artist.albums(), title=artist.title)
+        # artist = ph.get_artist_by_key(artist_name)
+        # return render_template('table.html', albums=artist.albums(), title=artist.title)
+
+        artist = ph.ArtistWrapper(row=db.get_artist_by_name(artist_name))
+        albums = [ph.AlbumWrapper(row=row) for row in db.get_albums_for(artist.key)]
+        albums.sort(key=lambda x: x.year, reverse=True)
+
+        return render_template('table.html', albums=albums, title=artist.title)
     else:
-        return render_template('table.html', artists=music.all(), title="Artists")
+        artists = [ph.ArtistWrapper(row=row) for row in db.get_artists()]
+        artists.sort(key=lambda x: x.titleSort)
+
+        return render_template('table.html', artists=artists, title="Artists")
 
 
 @app.route("/artist/<artist_name>/<album_name>")
 @login_required
 @require_permission(PermissionType.MUSIC, Permission.VIEW)
-@cache.cached(timeout=CACHE_TIMEOUT)
 def album(artist_name, album_name):
-    album = ph.get_album(artist_name, album_name)
-    return render_template('table.html', tracks=album.tracks(), title=album.title,
+    artist = ph.ArtistWrapper(row=db.get_artist_by_name(artist_name))
+    album = ph.AlbumWrapper(row=db.get_album_for(artist.key, album_name))
+    tracks = [ph.TrackWrapper(row=row) for row in db.get_tracks_for(album.key)]
+    tracks = sorted(tracks, key=lambda x: (x.parentIndex, x.index))
+
+    return render_template('table.html', tracks=tracks, title=album.title,
                            parentTitle=album.parentTitle, settings=settings, totalSize=album.size_formatted())
 
 
@@ -239,7 +261,6 @@ def album(artist_name, album_name):
 @app.route("/artist/<artist_name>/<album_name>/<track_name>/<download>")
 @login_required
 @require_permission(PermissionType.MUSIC, Permission.VIEW)
-@cache.cached(timeout=CACHE_TIMEOUT)
 def track(artist_name, album_name, track_name, download=False):
     track = ph.get_track(artist_name, album_name, track_name)
 
@@ -448,7 +469,6 @@ def zip(artist_name, album_name):
 @app.route('/image/<path:thumb_id>/<width>')
 # @login_required
 # @require_permission(PermissionType.MUSIC, Permission.VIEW)
-@cache.cached(timeout=CACHE_TIMEOUT)
 def image(thumb_id, width=None):
     """
     Returns the image for the given thumb-id. It is important to
@@ -481,21 +501,20 @@ def image(thumb_id, width=None):
 @login_required
 @admin_required
 def update_database():
-    # Empty tables because I'm lazy
-    # db.delete('tracks')
-    # db.delete('albums')
-    # db.delete('artists')
-
+    # Return data
     updated = {
         'artists': [],
         'albums': [],
         'tracks': []
     }
 
-    artists = [ph.ArtistWrapper(artist) for artist in music.all()]
+    # artists = [ph.ArtistWrapper(artist) for artist in music.all()]
+    artists = music.all()
     num_artists = len(artists)
     i = 1
-    for artist in artists:
+    for a in artists:
+        artist = ph.ArtistWrapper(a)
+
         print("(%r/%r): %s" % (i, num_artists, artist.title))
         i += 1
 
@@ -503,9 +522,9 @@ def update_database():
         num_albums = len(albums)
         artist_values = [
             db.Value('library_key', key_num(artist.key)),
-            db.Value('name', artist.title.replace("'", "%27")),
-            db.Value('name_sort', artist.titleSort.replace("'", "%27"), ),
-            db.Value('thumb', path.basename(artist.thumb) if artist.thumb else 0, ),
+            db.Value('name', quote(artist.title)),
+            db.Value('name_sort', quote(artist.titleSort)),
+            db.Value('thumb', path.basename(artist.thumb) if artist.thumb else 0),
             db.Value('album_count', num_albums)
         ]
 
@@ -523,10 +542,12 @@ def update_database():
 
             album_values = [
                 db.Value('library_key', key_num(album.key)),
-                db.Value('name', album.title.replace("'", "%27")),
-                db.Value('name_sort', album.titleSort.replace("'", "%27")),
+                db.Value('name', quote(album.title)),
+                db.Value('name_sort', quote(album.titleSort)),
                 db.Value('artist_key', key_num(artist.key)),
+                db.Value('artist_name', quote(artist.title)),
                 db.Value('year', album.year),
+                db.Value('genres', ','.join(album.genres)),
                 db.Value('thumb', path.basename(album.thumb) if album.thumb else 0),
                 db.Value('track_count', num_tracks),
                 db.Value('total_size', sum(track.size for track in tracks))
@@ -543,10 +564,12 @@ def update_database():
 
                 track_values = [
                     db.Value('library_key', key_num(track.key)),
-                    db.Value('name', track.title.replace("'", "%27")),
-                    db.Value('name_sort', track.titleSort.replace("'", "%27")),
+                    db.Value('name', quote(track.title)),
+                    db.Value('name_sort', quote(track.titleSort)),
                     db.Value('artist_key', key_num(artist.key)),
+                    db.Value('artist_name', quote(artist.title)),
                     db.Value('album_key', key_num(album.key)),
+                    db.Value('album_name', quote(album.title)),
                     db.Value('duration', track.duration),
                     db.Value('track_num', track.index),
                     db.Value('disc_num', track.parentIndex),
@@ -561,13 +584,6 @@ def update_database():
                     updated['tracks'].append(track.title)
 
     return dumps(updated)
-
-
-@app.route('/lidarr', methods=['POST'])  # TODO Run partial database update, get data from webhook, (remove cron?)
-def plex():
-    with open("test.json", "a") as f:
-        f.write(dumps(request.json, indent=4))
-    return dumps(200)
 
 
 # TODO Tidy function
@@ -634,5 +650,4 @@ def setup():
 
 # --START OF PROGRAM--
 if __name__ == "__main__":
-    app.run()
-    app.debug = True
+    app.run(debug=True)

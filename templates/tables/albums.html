@@ -20,7 +20,7 @@
             <tr>
                 <td><a href="{{ url_for('album', artist_name=album.parentTitle, album_name=album.title) }}">{{ album.title }}</a></td>
                 <td>{{ album.year }}</td>
-                <td>{{ album.tracks()|length }}</td>
+                <td>{{ album.num_tracks }}</td>
                 {% if is_search %}
                     <td><a href="{{ url_for('artist', artist_name=album.parentTitle) }}">{{ album.parentTitle }}</a></td>
                 {% endif %}
