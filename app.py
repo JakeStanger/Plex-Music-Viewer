@@ -2,7 +2,8 @@ from functools import wraps
 from io import BytesIO
 from os import path, symlink, makedirs, environ
 from timeit import default_timer as timer
-from urllib.request import urlopen, quote
+from urllib.request import urlopen
+from urllib.parse import quote
 from zipfile import ZipFile
 
 from PIL import Image
@@ -250,6 +251,7 @@ def album(artist_name, album_name):
     artist = ph.ArtistWrapper(row=db.get_artist_by_name(artist_name))
     album = ph.AlbumWrapper(row=db.get_album_for(artist.key, album_name))
     tracks = [ph.TrackWrapper(row=row) for row in db.get_tracks_for(album.key)]
+    tracks = sorted(tracks, key=lambda x: (x.parentIndex, x.index))
 
     return render_template('table.html', tracks=tracks, title=album.title,
                            parentTitle=album.parentTitle, settings=settings, totalSize=album.size_formatted())
@@ -520,8 +522,8 @@ def update_database():
         num_albums = len(albums)
         artist_values = [
             db.Value('library_key', key_num(artist.key)),
-            db.Value('name', artist.title.replace("'", "%27")),
-            db.Value('name_sort', artist.titleSort.replace("'", "%27")),
+            db.Value('name', quote(artist.title)),
+            db.Value('name_sort', quote(artist.titleSort)),
             db.Value('thumb', path.basename(artist.thumb) if artist.thumb else 0),
             db.Value('album_count', num_albums)
         ]
@@ -540,10 +542,10 @@ def update_database():
 
             album_values = [
                 db.Value('library_key', key_num(album.key)),
-                db.Value('name', album.title.replace("'", "%27")),
-                db.Value('name_sort', album.titleSort.replace("'", "%27")),
+                db.Value('name', quote(album.title)),
+                db.Value('name_sort', quote(album.titleSort)),
                 db.Value('artist_key', key_num(artist.key)),
-                db.Value('artist_name', artist.title.replace("'", "%27")),
+                db.Value('artist_name', quote(artist.title)),
                 db.Value('year', album.year),
                 db.Value('genres', ','.join(album.genres)),
                 db.Value('thumb', path.basename(album.thumb) if album.thumb else 0),
@@ -562,12 +564,12 @@ def update_database():
 
                 track_values = [
                     db.Value('library_key', key_num(track.key)),
-                    db.Value('name', track.title.replace("'", "%27")),
-                    db.Value('name_sort', track.titleSort.replace("'", "%27")),
+                    db.Value('name', quote(track.title)),
+                    db.Value('name_sort', quote(track.titleSort)),
                     db.Value('artist_key', key_num(artist.key)),
-                    db.Value('artist_name', artist.title.replace("'", "%27")),
+                    db.Value('artist_name', quote(artist.title)),
                     db.Value('album_key', key_num(album.key)),
-                    db.Value('album_name', album.title.replace("'", "%27")),
+                    db.Value('album_name', quote(album.title)),
                     db.Value('duration', track.duration),
                     db.Value('track_num', track.index),
                     db.Value('disc_num', track.parentIndex),

@@ -55,7 +55,7 @@ def call_proc(proc: str, values):
 
 
 def exec_sql(query: str, fetch_one: bool = False, fetch_all: bool = False, commit: bool = False):
-    print(query)
+    # print(query)
     global mysql
     if not mysql:
         init()
@@ -113,21 +113,18 @@ def wrapper_to_values(wrapper, type):
     if type == 'ARTIST':
         return [
             Value('library_key', app.key_num(wrapper.key)),
-            Value('name', wrapper.title.replace("'", "%27")),
-            Value('name_sort', wrapper.titleSort.replace("'", "%27")),
+            Value('name', quote(wrapper.title)),
+            Value('name_sort', quote(wrapper.titleSort)),
             Value('thumb', wrapper.basename(wrapper.thumb) if wrapper.thumb else 0),
             Value('album_count', wrapper.num_albums)
         ]
     elif type == 'ALBUM':
-        print("FLJGGJLHGJFL:HJ:L")
-        print(wrapper.title)
-        print(wrapper.year)
         return [
             Value('library_key', app.key_num(wrapper.key)),
-            Value('name', wrapper.title.replace("'", "%27")),
-            Value('name_sort', wrapper.titleSort.replace("'", "%27")),
+            Value('name', quote(wrapper.title)),
+            Value('name_sort', quote(wrapper.titleSort)),
             Value('artist_key', app.key_num(wrapper.parentKey)),
-            Value('artist_name', wrapper.parentTitle.replace("'", "%27")),
+            Value('artist_name', quote(wrapper.parentTitle)),
             Value('year', wrapper.year),
             Value('genres', ','.join(wrapper.genres)),
             Value('thumb', path.basename(wrapper.thumb) if wrapper.thumb else 0),
@@ -137,12 +134,12 @@ def wrapper_to_values(wrapper, type):
     elif type == 'TRACK':
         return [
             Value('library_key', app.key_num(wrapper.key)),
-            Value('name', wrapper.title.replace("'", "%27")),
-            Value('name_sort', wrapper.titleSort.replace("'", "%27")),
+            Value('name', quote(wrapper.title)),
+            Value('name_sort', quote(wrapper.titleSort)),
             Value('artist_key', app.key_num(wrapper.grandparentKey)),
-            Value('artist_name', wrapper.grandparentTitle.replace("'", "%27")),
+            Value('artist_name', quote(wrapper.grandparentTitle)),
             Value('album_key', app.key_num(wrapper.parentKey)),
-            Value('album_name', wrapper.parentTitle.replace("'", "%27")),
+            Value('album_name', quote(wrapper.parentTitle)),
             Value('duration', wrapper.duration),
             Value('track_num', wrapper.index),
             Value('disc_num', wrapper.parentIndex),
@@ -193,7 +190,7 @@ def get_artist_by_key(library_key: int):
 
 
 def get_artist_by_name(name: str):
-    return get_one('artists', conditions=[Value('name', name)])
+    return get_one('artists', conditions=[Value('name', quote(name))])
 
 
 def get_albums_for(artist_key: int):
@@ -201,7 +198,7 @@ def get_albums_for(artist_key: int):
 
 
 def get_album_for(artist_key: int, name: str):
-    return get_one('albums', conditions=[Value('artist_key', artist_key), Value('name', name)])
+    return get_one('albums', conditions=[Value('artist_key', artist_key), Value('name', quote(name))])
 
 
 def get_tracks_for(album_key: int):
@@ -209,4 +206,4 @@ def get_tracks_for(album_key: int):
 
 
 def get_track_for(album_key: int, name: str):
-    return get_one('tracks', conditions=[Value('album_key', album_key), Value('name', name)])
+    return get_one('tracks', conditions=[Value('album_key', album_key), Value('name', quote(name))])

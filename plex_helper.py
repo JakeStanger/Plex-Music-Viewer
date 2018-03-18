@@ -6,6 +6,7 @@ import app
 import database as db
 from plex_api_extras import get_additional_track_data
 from plexapi.audio import Artist, Album, Track
+from urllib.parse import unquote
 
 
 class ArtistWrapper:
@@ -22,10 +23,10 @@ class ArtistWrapper:
             self.num_albums = len(self._artist.albums())
         else:
             self.key = row[0]
-            self.title = row[1]
-            self.titleSort = row[2]
+            self.title = unquote(row[1])
+            self.titleSort = unquote(row[2])
             self.thumb = row[3]
-            self.num_albums = row[3]
+            self.num_albums = row[4]
 
     def album(self, album_name):
         if self._artist:
@@ -60,10 +61,10 @@ class AlbumWrapper:
             self.total_size = sum(track.size for track in self.tracks())
         else:
             self.key = row[0]
-            self.title = row[1]
-            self.titleSort = row[2]
+            self.title = unquote(row[1])
+            self.titleSort = unquote(row[2])
             self.parentKey = row[3]
-            self.parentTitle = row[4]
+            self.parentTitle = unquote(row[4])
             self.year = row[5]
             self.genres = row[6].split(',')
             self.thumb = row[7]
@@ -119,12 +120,12 @@ class TrackWrapper:
             self.format = additional['codec']
         else:
             self.key = row[0]
-            self.title = row[1]
-            self.titleSort = row[2]
+            self.title = unquote(row[1])
+            self.titleSort = unquote(row[2])
             self.grandparentKey = row[3]
-            self.grandparentTitle = row[4]
+            self.grandparentTitle = unquote(row[4])
             self.parentKey = row[5]
-            self.parentTitle = row[6]
+            self.parentTitle = unquote(row[6])
             self.duration = row[7]
             self.index = row[8]
             self.parentIndex = row[9]
