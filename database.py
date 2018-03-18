@@ -55,6 +55,7 @@ def call_proc(proc: str, values):
 
 
 def exec_sql(query: str, fetch_one: bool = False, fetch_all: bool = False, commit: bool = False):
+    print(query)
     global mysql
     if not mysql:
         init()
@@ -83,8 +84,8 @@ def get_one(table: str, columns: list = None, conditions: list = None):
 
 def get_all(table: str, columns: list = None, conditions: list = None):
     return exec_sql("SELECT %s FROM %s" % (','.join(col for col in columns) if columns else '*', table)
-                    + " WHERE %s" % ' AND '.join("%s='%s'" % (condition.column, condition.value)
-                                                 for condition in conditions) if conditions else '', fetch_all=True)
+                    + (" WHERE %s" % ' AND '.join("%s='%s'" % (condition.column, condition.value)
+                                                 for condition in conditions) if conditions else ''), fetch_all=True)
 
 
 def insert_direct(table: str, values: list, overwrite=False):
@@ -187,8 +188,12 @@ def get_artists():
     return get_all('artists')
 
 
-def get_artist(library_key: int):
+def get_artist_by_key(library_key: int):
     return get_one('artists', conditions=['library_key', library_key])
+
+
+def get_artist_by_name(name: str):
+    return get_one('artists', conditions=[Value('name', name)])
 
 
 def get_albums_for(artist_key: int):
