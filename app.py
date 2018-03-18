@@ -1,17 +1,12 @@
 from functools import wraps
 from io import BytesIO
-from os import path, symlink, makedirs, environ
-from timeit import default_timer as timer
+from os import path, symlink, makedirs
 from urllib.request import urlopen
-from urllib.parse import quote
 from zipfile import ZipFile
 
 from PIL import Image
 from flask import Flask, render_template, send_file, redirect, url_for, flash
 from flask_login import LoginManager, login_required, login_user, logout_user
-from plexapi.library import Library
-
-from plexapi.server import PlexServer
 from simplejson import dumps, load
 from werkzeug.security import generate_password_hash, check_password_hash
 
@@ -20,6 +15,8 @@ import plex_helper as ph
 from accounts import User, Permission, PermissionType
 from helper import *
 from plex_api_extras import getDownloadLocationPOST, get_additional_track_data
+from plexapi.library import Library
+from plexapi.server import PlexServer
 
 # Flask configuration
 app = Flask(__name__)
@@ -38,7 +35,6 @@ def trigger_database_update():
 
 
 def listen(msg):
-
     if msg['type'] == 'timeline':
         timeline_entry = msg['TimelineEntry'][0]
 
@@ -500,88 +496,74 @@ def image(thumb_id, width=None):
 @app.route('/update_database', methods=['POST'])
 @login_required
 @admin_required
-def update_database():
+def update_database(names: dict=None, deep=False, drop_old=False):
+    """
+    Scans the Plex server for changes, and writes them
+    to the database.
+
+    :param names: A nested dictionary of artists, albums and tracks to update.
+    Leave empty to update the entire database.
+
+    :param deep: Scan every artist, album and track. By default the scanner
+    only scans objects where the parent has changed, meaning metadata edits
+    will not be picked up. New or albums and tracks will be detected.
+
+    :param drop_old: Delete the current contents of the database
+    and perform a complete refresh.
+
+    :return: Dictionary of changed media elements
+    """
     # Return data
-    updated = {
-        'artists': [],
-        'albums': [],
-        'tracks': []
-    }
+    updated = {}
 
-    # artists = [ph.ArtistWrapper(artist) for artist in music.all()]
-    artists = music.all()
-    num_artists = len(artists)
-    i = 1
-    for a in artists:
-        artist = ph.ArtistWrapper(a)
+    if drop_old:
+        db.delete('artists')
 
-        print("(%r/%r): %s" % (i, num_artists, artist.title))
-        i += 1
+    if names:
+        artists = [ph.get_artist(name) for name in names.keys()]
+    else:
+        artists = ph.get_artists()
 
-        albums = artist.albums()
-        num_albums = len(albums)
-        artist_values = [
-            db.Value('library_key', key_num(artist.key)),
-            db.Value('name', quote(artist.title)),
-            db.Value('name_sort', quote(artist.titleSort)),
-            db.Value('thumb', path.basename(artist.thumb) if artist.thumb else 0),
-            db.Value('album_count', num_albums)
-        ]
+    for artist in artists:
+        print(artist.title)
+        data = db.get_wrapper_as_values(artist, ph.Type.ARTIST.name)
 
-        if not db.get_one('artists', conditions=artist_values):
-            db.insert_direct('artists', artist_values, overwrite=True)
-            updated['artists'].append(artist.title)
+        scan_albums = False
+        if not db.get_one('artists', conditions=data):
+            db.insert_direct('artists', data, overwrite=True)
+            updated[artist.title] = {}
+            scan_albums = True
 
-        j = 1
-        for album in albums:
-            print("\t(%r/%r): %s" % (j, num_albums, album.title))
-            j += 1
+        if scan_albums or deep:
+            if names:
+                albums = [ph.get_album(artist.title, album_name) for album_name in names.get(artist.title).keys()]
+            else:
+                albums = artist.albums()
 
-            tracks = album.tracks()
-            num_tracks = len(tracks)
+            for album in albums:
+                print("\t%s" % album.title)
+                data = db.get_wrapper_as_values(album, ph.Type.ALBUM.name)
 
-            album_values = [
-                db.Value('library_key', key_num(album.key)),
-                db.Value('name', quote(album.title)),
-                db.Value('name_sort', quote(album.titleSort)),
-                db.Value('artist_key', key_num(artist.key)),
-                db.Value('artist_name', quote(artist.title)),
-                db.Value('year', album.year),
-                db.Value('genres', ','.join(album.genres)),
-                db.Value('thumb', path.basename(album.thumb) if album.thumb else 0),
-                db.Value('track_count', num_tracks),
-                db.Value('total_size', sum(track.size for track in tracks))
-            ]
+                scan_tracks = False
+                if not db.get_one('albums', conditions=data):
+                    db.insert_direct('albums', data, overwrite=True)
+                    updated[artist.title][album.title] = []
+                    scan_tracks = True
 
-            if not db.get_one('albums', conditions=album_values):
-                db.insert_direct('albums', album_values, overwrite=True)
-                updated['albums'].append(album.title)
+                if scan_tracks or deep:
+                    if names:
+                        tracks = [ph.get_track(artist.title, album.title, track_name)
+                                  for track_name in names.get(artist.title).get(album.title).keys()]
+                    else:
+                        tracks = album.tracks()
 
-            k = 1
-            for track in tracks:
-                print("\t\t(%r/%r): %s" % (k, num_tracks, track.title))
-                k += 1
+                    for track in tracks:
+                        print("\t\t%s" % track.title)
+                        data = db.get_wrapper_as_values(track, ph.Type.TRACK.name)
 
-                track_values = [
-                    db.Value('library_key', key_num(track.key)),
-                    db.Value('name', quote(track.title)),
-                    db.Value('name_sort', quote(track.titleSort)),
-                    db.Value('artist_key', key_num(artist.key)),
-                    db.Value('artist_name', quote(artist.title)),
-                    db.Value('album_key', key_num(album.key)),
-                    db.Value('album_name', quote(album.title)),
-                    db.Value('duration', track.duration),
-                    db.Value('track_num', track.index),
-                    db.Value('disc_num', track.parentIndex),
-                    db.Value('download_url', quote(track.downloadURL)),
-                    db.Value('bitrate', track.bitrate),
-                    db.Value('size', track.size),
-                    db.Value('format', track.format)
-                ]
-
-                if not db.get_one('tracks', conditions=track_values):
-                    db.insert_direct('tracks', track_values, overwrite=True)
-                    updated['tracks'].append(track.title)
+                        if not db.get_one('tracks', conditions=data):
+                            db.insert_direct('tracks', data, overwrite=True)
+                            updated[artist.title][album.title].append(track.title)
 
     return dumps(updated)
 
