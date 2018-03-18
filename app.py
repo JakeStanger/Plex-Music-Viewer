@@ -228,19 +228,30 @@ def index():
 @require_permission(PermissionType.MUSIC, Permission.VIEW)
 def artist(artist_name=None):
     if artist_name:
-        artist = ph.get_artist(artist_name)
-        return render_template('table.html', albums=artist.albums(), title=artist.title)
+        # artist = ph.get_artist_by_key(artist_name)
+        # return render_template('table.html', albums=artist.albums(), title=artist.title)
+
+        artist = ph.ArtistWrapper(row=db.get_artist_by_name(artist_name))
+        albums = [ph.AlbumWrapper(row=row) for row in db.get_albums_for(artist.key)]
+        albums.sort(key=lambda x: x.year, reverse=True)
+
+        return render_template('table.html', albums=albums, title=artist.title)
     else:
-        return render_template('table.html', artists=[ph.ArtistWrapper(artist) for artist in music.all()],
-                               title="Artists")
+        artists = [ph.ArtistWrapper(row=row) for row in db.get_artists()]
+        artists.sort(key=lambda x: x.titleSort)
+
+        return render_template('table.html', artists=artists, title="Artists")
 
 
 @app.route("/artist/<artist_name>/<album_name>")
 @login_required
 @require_permission(PermissionType.MUSIC, Permission.VIEW)
 def album(artist_name, album_name):
-    album = ph.get_album(artist_name, album_name)
-    return render_template('table.html', tracks=album.tracks(), title=album.title,
+    artist = ph.ArtistWrapper(row=db.get_artist_by_name(artist_name))
+    album = ph.AlbumWrapper(row=db.get_album_for(artist.key, album_name))
+    tracks = [ph.TrackWrapper(row=row) for row in db.get_tracks_for(album.key)]
+
+    return render_template('table.html', tracks=tracks, title=album.title,
                            parentTitle=album.parentTitle, settings=settings, totalSize=album.size_formatted())
 
 
@@ -637,4 +648,4 @@ def setup():
 
 # --START OF PROGRAM--
 if __name__ == "__main__":
-    app.run(debug=False)
+    app.run(debug=True)
