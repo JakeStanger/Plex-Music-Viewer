@@ -28,6 +28,7 @@ def clear_cache():
     global _cache
     _cache = []
 
+
 class Value:
     def __init__(self, column, value):
         self.column = column
