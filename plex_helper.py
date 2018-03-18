@@ -2,24 +2,32 @@ from plex_api_extras import get_additional_track_data
 from json import dumps
 import app
 from plexapi.audio import Artist, Album, Track
+# from worker_multiprocessing import WorkerPool as Pool
+from multiprocessing import Pool
+from timeit import default_timer as timer
+from enum import Enum
 import math
 
 
 class ArtistWrapper:
     def __init__(self, artist: Artist):
-        # self._albums = artist.albums()
+        #self._albums = [*pool.map(AlbumWrapper, artist.albums())]
+        #self._albums = [AlbumWrapper(album) for album in artist.albums()]
 
         self._artist = artist
         self.title = artist.title
         self.titleSort = artist.titleSort
         self.key = artist.key
         self.thumb = artist.thumb
-        # self.albumCount = len(self._albums)
+        self.num_albums = len(self._artist.albums())
 
     def album(self, album_name):
         return self._artist.album(album_name)
 
     def albums(self):
+        # pool = Pool(4)
+        # return [*pool.map(AlbumWrapper, self._artist.albums())]
+
         return [AlbumWrapper(album) for album in self._artist.albums()]
 
 
@@ -31,10 +39,11 @@ class AlbumWrapper:
         self.title = album.title
         self.titleSort = album.titleSort
         self.key = album.key
+        self.parentKey = album.parentKey
         self.parentTitle = album.parentTitle
         self.thumb = album.thumb
         self.genres = [genre.tag for genre in album.genres]
-        # self.trackCount = len(self._tracks)
+        self.num_tracks = len(self._album.tracks())
         self.artist = album.parentTitle
         self.year = album.year
         self.total_size = sum(track.size for track in self.tracks())
@@ -43,6 +52,8 @@ class AlbumWrapper:
         return self._album.track(track_name)
 
     def tracks(self):
+        # pool = Pool(4)
+        # return [*pool.map(TrackWrapper, self._album.tracks())]
         return [TrackWrapper(track) for track in self._album.tracks()]
 
     def size_formatted(self):
@@ -62,6 +73,8 @@ class TrackWrapper:
         self.title = track.title
         self.titleSort = track.titleSort
         self.key = track.key
+        self.parentKey = track.parentKey
+        self.grandparentKey = track.grandparentKey
         self.grandparentTitle = track.grandparentTitle
         self.parentTitle = track.parentTitle
         self.duration = track.duration
@@ -86,12 +99,18 @@ class TrackWrapper:
         return ('%.3g' % (self.size / math.pow(1024, i))) + ' ' + sizes[i]
 
 
-def get_artist(artist_name):
+# def get_artists():
+#     pool = Pool(4)
+#     return [*pool.map(TrackWrapper, app.get_music().all())]
+
+
+def get_artist(artist_name:str=None):
     """
     :param artist_name: An artist name
     :return: The artist
     """
     results = app.get_music().search(artist_name)
+
     for result in results:
         if result.title == artist_name:
             return result
@@ -134,6 +153,10 @@ def get_track(artist_name, album_name, track_name):
         # except:
         #     return None
     return None
+
+
+def get_by_key(key: int):
+    return app.get_music().fetchItem('/library/metadata/%r' % key)
 
 
 def get_artist_json(artists):
@@ -196,3 +219,9 @@ def get_track_json(tracks):
             'index': track.index
         })
     return dumps(trackList)
+
+
+class Type(Enum):
+    TRACK = 10
+    ALBUM = 9
+    ARTIST = 8
