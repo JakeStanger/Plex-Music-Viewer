@@ -148,9 +148,8 @@ class TrackWrapper:
         return ('%.3g' % (self.size / math.pow(1024, i))) + ' ' + sizes[i]
 
 
-# def get_artists():
-#     pool = Pool(4)
-#     return [*pool.map(TrackWrapper, app.get_music().all())]
+def get_artists():
+    return [ArtistWrapper(artist) for artist in app.get_music().all()]
 
 
 def get_artist(artist_name:str=None):
