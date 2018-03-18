@@ -34,7 +34,7 @@ class Value:
         self.value = value
 
     def __repr__(self):
-        return "%s: %s" % (self.column, self.value)
+        return "<%s: %s>" % (self.column, self.value)
 
 
 def call_proc(proc: str, values):
@@ -107,7 +107,7 @@ def delete(table: str, condition: Value = None):
              + " WHERE %s='%s'" % (condition.column, condition.value) if condition else '', commit=True)
 
 
-def get_wrapper_information(wrapper, type):
+def wrapper_to_values(wrapper, type):
     if type == 'ARTIST':
         return [
             Value('library_key', app.key_num(wrapper.key)),
@@ -117,12 +117,17 @@ def get_wrapper_information(wrapper, type):
             Value('album_count', wrapper.num_albums)
         ]
     elif type == 'ALBUM':
+        print("FLJGGJLHGJFL:HJ:L")
+        print(wrapper.title)
+        print(wrapper.year)
         return [
             Value('library_key', app.key_num(wrapper.key)),
             Value('name', wrapper.title.replace("'", "%27")),
             Value('name_sort', wrapper.titleSort.replace("'", "%27")),
             Value('artist_key', app.key_num(wrapper.parentKey)),
+            Value('artist_name', wrapper.parentTitle.replace("'", "%27")),
             Value('year', wrapper.year),
+            Value('genres', ','.join(wrapper.genres)),
             Value('thumb', path.basename(wrapper.thumb) if wrapper.thumb else 0),
             Value('track_count', wrapper.num_tracks),
             Value('total_size', wrapper.total_size)
@@ -133,7 +138,9 @@ def get_wrapper_information(wrapper, type):
             Value('name', wrapper.title.replace("'", "%27")),
             Value('name_sort', wrapper.titleSort.replace("'", "%27")),
             Value('artist_key', app.key_num(wrapper.grandparentKey)),
+            Value('artist_name', wrapper.grandparentTitle.replace("'", "%27")),
             Value('album_key', app.key_num(wrapper.parentKey)),
+            Value('album_name', wrapper.parentTitle.replace("'", "%27")),
             Value('duration', wrapper.duration),
             Value('track_num', wrapper.index),
             Value('disc_num', wrapper.parentIndex),
@@ -158,6 +165,7 @@ def update_after_refresh(data):
 
         if entry['deleted']:
             delete(table, Value('library_key', entry['library_key']))
+            print("Deleted %s from %s" % (entry['library_key'], table))
         else:
             media = ph.get_by_key(entry['library_key'])
 
@@ -168,7 +176,31 @@ def update_after_refresh(data):
             elif type == 'TRACK':
                 wrapper = ph.TrackWrapper(media)
 
-            info = get_wrapper_information(wrapper, type)
+            info = wrapper_to_values(wrapper, type)
             insert_direct(table, info)
 
+            print("Added %s with key %s to table %s" % (wrapper.title, wrapper.key, table))
 
+
+def get_artists():
+    return get_all('artists')
+
+
+def get_artist(library_key: int):
+    return get_one('artists', conditions=['library_key', library_key])
+
+
+def get_albums_for(artist_key: int):
+    return get_all('albums', conditions=[Value('artist_key', artist_key)])
+
+
+def get_album_for(artist_key: int, name: str):
+    return get_one('albums', conditions=[Value('artist_key', artist_key), Value('name', name)])
+
+
+def get_tracks_for(album_key: int):
+    return get_all('tracks', conditions=[Value('album_key', album_key)])
+
+
+def get_track_for(album_key: int, name: str):
+    return get_one('tracks', conditions=[Value('album_key', album_key), Value('name', name)])

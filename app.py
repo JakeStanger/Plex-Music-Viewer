@@ -29,16 +29,27 @@ app.jinja_env.globals.update(int=int)
 app.jinja_env.globals.update(get_additional_track_data=get_additional_track_data)
 
 
+def trigger_database_update():
+    cache = db.get_cache()
+    if len(cache) > 0:
+        db.update_after_refresh(cache)
+        db.clear_cache()
+
+
 def listen(msg):
+
     if msg['type'] == 'timeline':
         timeline_entry = msg['TimelineEntry'][0]
-        # print(dumps(timeline_entry, indent=2))
+
+        state = timeline_entry['metadataState']
+        if state != 'created' and state != 'deleted':
+            return
 
         data = {
             'section_id': timeline_entry['sectionID'],
             'library_key': timeline_entry['itemID'],
             'type': ph.Type(timeline_entry['type']).name,
-            'deleted': timeline_entry['metadataState'] == 'deleted'
+            'deleted': state == 'deleted'
         }
 
         # Avoid duplicates
@@ -48,13 +59,8 @@ def listen(msg):
 
         db.insert_into_cache(data)
 
-    if msg['type'] == 'status':
-        status_notification = msg['StatusNotification'][0]
-        if status_notification['notificationName'] == "LIBRARY_UPDATE":
-            cache = db.get_cache()
-            if len(cache) > 0:
-                db.update_after_refresh(cache)
-                db.clear_cache()
+    if msg['type'] == 'backgroundProcessingQueue':
+        trigger_database_update()
 
 
 # @app.before_request
@@ -93,7 +99,7 @@ if settings['serverToken']:
     app.config['MYSQL_DATABASE_DB'] = settings['database']['database']
     app.config['MYSQL_DATABASE_HOST'] = settings['database']['hostname']
 
-    app.config.update(DEBUG=True, SECRET_KEY=settings['secret_key'])
+    app.config.update(SECRET_KEY=settings['secret_key'])
 
     plex.startAlertListener(listen)
 
@@ -526,7 +532,9 @@ def update_database():
                 db.Value('name', album.title.replace("'", "%27")),
                 db.Value('name_sort', album.titleSort.replace("'", "%27")),
                 db.Value('artist_key', key_num(artist.key)),
+                db.Value('artist_name', artist.title.replace("'", "%27")),
                 db.Value('year', album.year),
+                db.Value('genres', ','.join(album.genres)),
                 db.Value('thumb', path.basename(album.thumb) if album.thumb else 0),
                 db.Value('track_count', num_tracks),
                 db.Value('total_size', sum(track.size for track in tracks))
@@ -546,7 +554,9 @@ def update_database():
                     db.Value('name', track.title.replace("'", "%27")),
                     db.Value('name_sort', track.titleSort.replace("'", "%27")),
                     db.Value('artist_key', key_num(artist.key)),
+                    db.Value('artist_name', artist.title.replace("'", "%27")),
                     db.Value('album_key', key_num(album.key)),
+                    db.Value('album_name', album.title.replace("'", "%27")),
                     db.Value('duration', track.duration),
                     db.Value('track_num', track.index),
                     db.Value('disc_num', track.parentIndex),
@@ -627,4 +637,4 @@ def setup():
 
 # --START OF PROGRAM--
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=False)

@@ -30,7 +30,7 @@ class PermissionSet:
                 self.permissions[p] = False
 
     def __repr__(self):
-        return str(self.permission_level)
+        return "<%r>" % self.permission_level
 
     def has_permission(self, permission):
         return self.permissions[permission]
@@ -53,7 +53,7 @@ class User(UserMixin):
         self.is_admin = is_admin == 1
 
     def __repr__(self):
-        return "%d - %s" % (self.index, self.id)
+        return "<%d - %s>" % (self.index, self.id)
 
     def is_authenticated(self):
         return self.authenticated

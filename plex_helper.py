@@ -1,60 +1,86 @@
-from plex_api_extras import get_additional_track_data
-from json import dumps
-import app
-from plexapi.audio import Artist, Album, Track
-# from worker_multiprocessing import WorkerPool as Pool
-from multiprocessing import Pool
-from timeit import default_timer as timer
-from enum import Enum
 import math
+from enum import Enum
+from json import dumps
+
+import app
+import database as db
+from plex_api_extras import get_additional_track_data
+from plexapi.audio import Artist, Album, Track
 
 
 class ArtistWrapper:
-    def __init__(self, artist: Artist):
-        #self._albums = [*pool.map(AlbumWrapper, artist.albums())]
-        #self._albums = [AlbumWrapper(album) for album in artist.albums()]
+    def __init__(self, artist: Artist=None, row: list=None):
+        if not (artist or list):
+            raise ValueError("Must pass an artist or database row")
 
-        self._artist = artist
-        self.title = artist.title
-        self.titleSort = artist.titleSort
-        self.key = artist.key
-        self.thumb = artist.thumb
-        self.num_albums = len(self._artist.albums())
+        if artist:
+            self._artist = artist
+            self.title = artist.title
+            self.titleSort = artist.titleSort
+            self.key = artist.key
+            self.thumb = artist.thumb
+            self.num_albums = len(self._artist.albums())
+        else:
+            self.key = row[0]
+            self.title = row[1]
+            self.titleSort = row[2]
+            self.thumb = row[3]
+            self.num_albums = row[3]
 
     def album(self, album_name):
-        return self._artist.album(album_name)
+        if self._artist:
+            return self._artist.album(album_name)
+
+        return db.get_album_for(self.key, album_name)
 
     def albums(self):
-        # pool = Pool(4)
-        # return [*pool.map(AlbumWrapper, self._artist.albums())]
+        if self._artist:
+            return [AlbumWrapper(album) for album in self._artist.albums()]
 
-        return [AlbumWrapper(album) for album in self._artist.albums()]
+        return [AlbumWrapper(row=row) for row in db.get_albums_for(self.key)]
 
 
 class AlbumWrapper:
-    def __init__(self, album: Album):
-        # self._tracks = album.tracks()
+    def __init__(self, album: Album=None, row: list=None):
+        if not (album or list):
+            raise ValueError("Must pass an album or database row")
 
-        self._album = album
-        self.title = album.title
-        self.titleSort = album.titleSort
-        self.key = album.key
-        self.parentKey = album.parentKey
-        self.parentTitle = album.parentTitle
-        self.thumb = album.thumb
-        self.genres = [genre.tag for genre in album.genres]
-        self.num_tracks = len(self._album.tracks())
-        self.artist = album.parentTitle
-        self.year = album.year
-        self.total_size = sum(track.size for track in self.tracks())
+        if album:
+            self._album = album
+            self.title = album.title
+            self.titleSort = album.titleSort
+            self.key = album.key
+            self.parentKey = album.parentKey
+            self.parentTitle = album.parentTitle
+            self.thumb = album.thumb
+            self.genres = [genre.tag for genre in album.genres]
+            self.num_tracks = len(self._album.tracks())
+            self.artist = album.parentTitle
+            self.year = album.year
+            self.total_size = sum(track.size for track in self.tracks())
+        else:
+            self.key = row[0]
+            self.title = row[1]
+            self.titleSort = row[2]
+            self.parentKey = row[3]
+            self.parentTitle = row[4]
+            self.year = row[5]
+            self.genres = row[6].split(',')
+            self.thumb = row[7]
+            self.num_tracks = row[8]
+            self.total_size = row[9]
 
     def track(self, track_name):
-        return self._album.track(track_name)
+        if self._album:
+            return self._album.track(track_name)
+
+        return db.get_track_for(self.key, track_name)
 
     def tracks(self):
-        # pool = Pool(4)
-        # return [*pool.map(TrackWrapper, self._album.tracks())]
-        return [TrackWrapper(track) for track in self._album.tracks()]
+        if self._album:
+            return [TrackWrapper(track) for track in self._album.tracks()]
+
+        return [TrackWrapper(row=row) for row in db.get_tracks_for(self.key)]
 
     def size_formatted(self):
         sizes = ['B', 'kiB', 'MiB', 'GiB', 'TiB']
@@ -64,26 +90,48 @@ class AlbumWrapper:
         i = int(math.floor(math.log(self.total_size) / math.log(1024)))
         return ('%.3g' % (self.total_size / math.pow(1024, i))) + ' ' + sizes[i]
 
+    def __repr__(self):
+        return "<%s>" % self.title
+
 
 class TrackWrapper:
-    def __init__(self, track: Track):
-        additional = get_additional_track_data(track.key, app.get_settings())
+    def __init__(self, track: Track=None, row: list=None):
+        if not (track or list):
+            raise ValueError("Must pass a track or database row")
 
-        self._track = track
-        self.title = track.title
-        self.titleSort = track.titleSort
-        self.key = track.key
-        self.parentKey = track.parentKey
-        self.grandparentKey = track.grandparentKey
-        self.grandparentTitle = track.grandparentTitle
-        self.parentTitle = track.parentTitle
-        self.duration = track.duration
-        self.index = track.index
-        self.parentIndex = track.parentIndex
-        self.downloadURL = additional['downloadURL']
-        self.bitrate = additional['bitrate']
-        self.size = additional['size']
-        self.format = additional['codec']
+        if track:
+            additional = get_additional_track_data(track.key, app.get_settings())
+
+            self._track = track
+            self.title = track.title
+            self.titleSort = track.titleSort
+            self.key = track.key
+            self.parentKey = track.parentKey
+            self.grandparentKey = track.grandparentKey
+            self.grandparentTitle = track.grandparentTitle
+            self.parentTitle = track.parentTitle
+            self.duration = track.duration
+            self.index = track.index
+            self.parentIndex = track.parentIndex
+            self.downloadURL = additional['downloadURL']
+            self.bitrate = additional['bitrate']
+            self.size = additional['size']
+            self.format = additional['codec']
+        else:
+            self.key = row[0]
+            self.title = row[1]
+            self.titleSort = row[2]
+            self.grandparentKey = row[3]
+            self.grandparentTitle = row[4]
+            self.parentKey = row[5]
+            self.parentTitle = row[6]
+            self.duration = row[7]
+            self.index = row[8]
+            self.parentIndex = row[9]
+            self.downloadURL = row[10]
+            self.bitrate = row[11]
+            self.size = row[12]
+            self.format = row[13]
 
     def duration_formatted(self):
         minutes = math.floor(self.duration / 60000)
