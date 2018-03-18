@@ -109,13 +109,13 @@ def delete(table: str, condition: Value = None):
              + " WHERE %s='%s'" % (condition.column, condition.value) if condition else '', commit=True)
 
 
-def wrapper_to_values(wrapper, type):
+def get_wrapper_as_values(wrapper, type):
     if type == 'ARTIST':
         return [
             Value('library_key', app.key_num(wrapper.key)),
             Value('name', quote(wrapper.title)),
             Value('name_sort', quote(wrapper.titleSort)),
-            Value('thumb', wrapper.basename(wrapper.thumb) if wrapper.thumb else 0),
+            Value('thumb', path.basename(wrapper.thumb) if wrapper.thumb else 0),
             Value('album_count', wrapper.num_albums)
         ]
     elif type == 'ALBUM':
@@ -175,7 +175,7 @@ def update_after_refresh(data):
             elif type == 'TRACK':
                 wrapper = ph.TrackWrapper(media)
 
-            info = wrapper_to_values(wrapper, type)
+            info = get_wrapper_as_values(wrapper, type)
             insert_direct(table, info)
 
             print("Added %s with key %s to table %s" % (wrapper.title, wrapper.key, table))
