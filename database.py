@@ -176,7 +176,7 @@ def update_after_refresh(data):
                 wrapper = ph.TrackWrapper(media)
 
             info = get_wrapper_as_values(wrapper, type)
-            insert_direct(table, info)
+            insert_direct(table, info, overwrite=True)
 
             print("Added %s with key %s to table %s" % (wrapper.title, wrapper.key, table))
 

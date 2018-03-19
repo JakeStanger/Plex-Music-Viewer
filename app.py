@@ -17,6 +17,9 @@ from helper import *
 from plex_api_extras import getDownloadLocationPOST, get_additional_track_data
 from plexapi.library import Library
 from plexapi.server import PlexServer
+import sched, time
+from multiprocessing import Process
+from collections import defaultdict
 
 # Flask configuration
 app = Flask(__name__)
@@ -25,6 +28,9 @@ app.url_map.strict_slashes = False
 
 app.jinja_env.globals.update(int=int)
 app.jinja_env.globals.update(get_additional_track_data=get_additional_track_data)
+
+
+_update_stack = []
 
 
 def trigger_database_update():
@@ -38,26 +44,35 @@ def listen(msg):
     if msg['type'] == 'timeline':
         timeline_entry = msg['TimelineEntry'][0]
 
+        # item = ph.get_by_key(timeline_entry['itemID'])
+        # type = ph.Type(timeline_entry['type']).name
+
+        #_update_stack.append({item: type})
+
+
+        # print(msg)
+
         state = timeline_entry['metadataState']
-        if state != 'created' and state != 'deleted':
-            return
 
         data = {
             'section_id': timeline_entry['sectionID'],
             'library_key': timeline_entry['itemID'],
             'type': ph.Type(timeline_entry['type']).name,
-            'deleted': state == 'deleted'
+            'deleted': state == 'deleted',
         }
 
-        # Avoid duplicates
-        for entry in db.get_cache():
-            if entry['library_key'] == data['library_key'] and entry['section_id'] == data['section_id']:
-                return
+        # print(data)
 
-        db.insert_into_cache(data)
-
-    if msg['type'] == 'backgroundProcessingQueue':
-        trigger_database_update()
+        if not data in _update_stack:
+            _update_stack.append(data)
+    #
+    #     db.update_after_refresh([data])
+    #
+    #     if 'updatedAt' in timeline_entry:
+    #
+    #
+    elif msg['type'] == 'backgroundProcessingQueue':
+        update_database()
 
 
 # @app.before_request
@@ -493,26 +508,23 @@ def image(thumb_id, width=None):
         throw_error(400, "invalid thumb-id")
 
 
-@app.route('/update_database', methods=['POST'])
-@login_required
-@admin_required
-def update_database(names: dict=None, deep=False, drop_old=False):
+def do_database_update(names: dict=None, deep=False, drop_old=False):
     """
-    Scans the Plex server for changes, and writes them
-    to the database.
+        Scans the Plex server for changes, and writes them
+        to the database.
 
-    :param names: A nested dictionary of artists, albums and tracks to update.
-    Leave empty to update the entire database.
+        :param names: A nested dictionary of artists, albums and tracks to update.
+        Leave empty to update the entire database.
 
-    :param deep: Scan every artist, album and track. By default the scanner
-    only scans objects where the parent has changed, meaning metadata edits
-    will not be picked up. New or albums and tracks will be detected.
+        :param deep: Scan every artist, album and track. By default the scanner
+        only scans objects where the parent has changed, meaning metadata edits
+        will not be picked up. New or albums and tracks will be detected.
 
-    :param drop_old: Delete the current contents of the database
-    and perform a complete refresh.
+        :param drop_old: Delete the current contents of the database
+        and perform a complete refresh.
 
-    :return: Dictionary of changed media elements
-    """
+        :return: Dictionary of changed media elements
+        """
     # Return data
     updated = {}
 
@@ -553,7 +565,7 @@ def update_database(names: dict=None, deep=False, drop_old=False):
                 if scan_tracks or deep:
                     if names:
                         tracks = [ph.get_track(artist.title, album.title, track_name)
-                                  for track_name in names.get(artist.title).get(album.title).keys()]
+                                  for track_name in names.get(artist.title).get(album.title)]
                     else:
                         tracks = album.tracks()
 
@@ -566,6 +578,13 @@ def update_database(names: dict=None, deep=False, drop_old=False):
                             updated[artist.title][album.title].append(track.title)
 
     return dumps(updated)
+
+
+@app.route('/update_database', methods=['POST'])
+@login_required
+@admin_required
+def update_database(names: dict=None, deep=False, drop_old=False):
+    return do_database_update(names, deep, drop_old)
 
 
 # TODO Tidy function
@@ -630,6 +649,57 @@ def setup():
     return render_template('index.html')
 
 
+def process_update_stack(): # TODO Fix stack generation (perhaps just flatten)
+    update_list = defaultdict(lambda: defaultdict(list))
+    for entry in _update_stack:
+        print(entry)
+        if not entry['deleted']:
+            item = ph.get_by_key(entry['library_key'])
+            type = entry['type']
+
+            if type == 'ARTIST':
+                if item.title not in update_list:
+                    update_list[item.title] = {}
+            elif type == 'ALBUM':
+                if item.title not in update_list[item.parentTitle]:
+                    update_list[item.parentTitle][item.title] = []
+            elif type == 'TRACK':
+                update_list[item.grandparentTitle][item.parentTitle].append(item.title)
+                # print(item.parentTitle)
+        else:
+            print(entry)
+
+    if len(update_list) > 0:
+        do_database_update(update_list)
+
+
 # --START OF PROGRAM--
 if __name__ == "__main__":
-    app.run(debug=True)
+    scheduler = sched.scheduler(time.time)
+
+    def run_process_update_stack():
+        try:
+            process_update_stack()
+        finally:
+            scheduler.enter(60, 1, run_process_update_stack)
+
+    def run_scheduler():
+        run_process_update_stack()
+        scheduler.run()
+
+    debug = False
+
+    # flask = Process(target=app.run, args=(None, None, debug))
+    db_updater = Process(target=run_scheduler)
+
+    print("DJFJ")
+    # flask.start()
+    db_updater.start()
+
+    # flask.join()
+    # db_updater.join()
+    app.run(debug=False)
+
+    db_updater.join()
+
+

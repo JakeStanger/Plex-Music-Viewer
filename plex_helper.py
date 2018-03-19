@@ -161,9 +161,7 @@ def get_artist(artist_name:str=None):
 
     for result in results:
         if result.title == artist_name:
-            return result
-    if len(results) > 0:
-        return ArtistWrapper(results[0])
+            return ArtistWrapper(result)
     return None
 
 
