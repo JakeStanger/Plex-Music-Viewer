@@ -40,6 +40,12 @@ class ArtistWrapper:
 
         return [AlbumWrapper(row=row) for row in db.get_albums_for(self.key)]
 
+    def children(self):
+        return self.albums()
+
+    def parent(self) -> None:
+        return None
+
 
 class AlbumWrapper:
     def __init__(self, album: Album=None, row: list=None):
@@ -60,10 +66,10 @@ class AlbumWrapper:
             self.year = album.year
             self.total_size = sum(track.size for track in self.tracks())
         else:
-            self.key = row[0]
+            self.key = int(row[0])
             self.title = unquote(row[1])
             self.titleSort = unquote(row[2])
-            self.parentKey = row[3]
+            self.parentKey = int(row[3])
             self.parentTitle = unquote(row[4])
             self.year = row[5]
             self.genres = row[6].split(',')
@@ -82,6 +88,12 @@ class AlbumWrapper:
             return [TrackWrapper(track) for track in self._album.tracks()]
 
         return [TrackWrapper(row=row) for row in db.get_tracks_for(self.key)]
+
+    def children(self):
+        return self.tracks()
+
+    def parent(self) -> ArtistWrapper:
+        return ArtistWrapper(self._album.artist())
 
     def size_formatted(self):
         sizes = ['B', 'kiB', 'MiB', 'GiB', 'TiB']
@@ -119,12 +131,12 @@ class TrackWrapper:
             self.size = additional['size']
             self.format = additional['codec']
         else:
-            self.key = row[0]
+            self.key = int(row[0])
             self.title = unquote(row[1])
             self.titleSort = unquote(row[2])
-            self.grandparentKey = row[3]
+            self.grandparentKey = int(row[3])
             self.grandparentTitle = unquote(row[4])
-            self.parentKey = row[5]
+            self.parentKey = int(row[5])
             self.parentTitle = unquote(row[6])
             self.duration = row[7]
             self.index = row[8]
@@ -133,6 +145,12 @@ class TrackWrapper:
             self.bitrate = row[11]
             self.size = row[12]
             self.format = row[13]
+
+    def children(self) -> None:
+        return None
+
+    def parent(self) -> AlbumWrapper:
+        return AlbumWrapper(self._track.album())
 
     def duration_formatted(self):
         minutes = math.floor(self.duration / 60000)
@@ -205,6 +223,30 @@ def get_by_key(key: int):
     return app.get_music().fetchItem('/library/metadata/%r' % key)
 
 
+def get_parent_key(key: int):
+    try:
+        return app.get_music().fetchItem('/library/metadata/%r' % key).parentKey
+    except:
+        return None
+
+
+def get_grandparent_key(key: int):
+    try:
+        return app.get_music().fetchItem('/library/metadata/%r' % key).grandparentKey
+    except:
+        return None
+
+
+def wrap(media):
+    media_type = type(media)
+    if media_type == Artist:
+        return ArtistWrapper(media)
+    elif media_type == Album:
+        return AlbumWrapper(media)
+    elif media_type == Track:
+        return TrackWrapper(media)
+
+
 def get_artist_json(artists):
     print(artists)
     """
@@ -271,3 +313,20 @@ class Type(Enum):
     TRACK = 10
     ALBUM = 9
     ARTIST = 8
+
+    @staticmethod
+    def get(obj):
+        return {
+            ArtistWrapper: Type.ARTIST,
+            AlbumWrapper: Type.ALBUM,
+            TrackWrapper: Type.TRACK
+
+        }.get(type(obj))
+
+    @staticmethod
+    def parent(type):
+        return {
+            Type.ARTIST: None,
+            Type.ALBUM: Type.ARTIST,
+            Type.TRACK: Type.ALBUM
+        }

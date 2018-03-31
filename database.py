@@ -55,7 +55,7 @@ def call_proc(proc: str, values):
 
 
 def exec_sql(query: str, fetch_one: bool = False, fetch_all: bool = False, commit: bool = False):
-    # print(query)
+    print(query)
     global mysql
     if not mysql:
         init()
@@ -76,6 +76,15 @@ def exec_sql(query: str, fetch_one: bool = False, fetch_all: bool = False, commi
     conn.close()
 
 
+def generate_where(conditions):
+    return " WHERE %s" % ' AND '.join("%s='%s'" % (condition.column, condition.value)
+                                          for condition in conditions) if conditions else ''
+
+
+def generate_on_duplicate_key_update(columns):
+    return " ON DUPLICATE KEY UPDATE %s" % ','.join("%s='%s'" % (column.column, column.value) for column in columns)
+
+
 def get_one(table: str, columns: list = None, conditions: list = None):
     return exec_sql("SELECT %s FROM %s" % (','.join(col for col in columns) if columns else '*', table)
                     + " WHERE %s" % ' AND '.join("%s='%s'" % (condition.column, condition.value)
@@ -85,32 +94,36 @@ def get_one(table: str, columns: list = None, conditions: list = None):
 def get_all(table: str, columns: list = None, conditions: list = None):
     return exec_sql("SELECT %s FROM %s" % (','.join(col for col in columns) if columns else '*', table)
                     + (" WHERE %s" % ' AND '.join("%s='%s'" % (condition.column, condition.value)
-                                                 for condition in conditions) if conditions else ''), fetch_all=True)
+                                                  for condition in conditions) if conditions else ''), fetch_all=True)
 
 
 def insert_direct(table: str, values: list, overwrite=False):
-    exec_sql("%s INTO %s VALUES (%s)" % ('REPLACE' if overwrite else 'INSERT', table,
-                                         ','.join("'%s'" % value.value for value in values)), commit=True)
+    exec_sql("INSERT INTO %s VALUES (%s) %s" % (table,
+                                                ','.join("'%s'" % value.value for value in values),
+                                                generate_on_duplicate_key_update(values) if overwrite else ''),
+             commit=True)
 
 
 def insert_specific(table: str, values: list, overwrite=False):
-    exec_sql("%s INTO %s (%s) VALUES (%s)" % ('REPLACE' if overwrite else 'INSERT', table,
-                                              ','.join(value.column for value in values),
-                                              ','.join('%s' % value.value for value in values)), commit=True)
+    exec_sql("INSERT %s INTO %s (%s) VALUES (%s)" % (table,
+                                                     ','.join(value.column for value in values),
+                                                     ','.join('%s' % value.value for value in values),
+                                                     generate_on_duplicate_key_update(values) if overwrite else ''),
+             commit=True)
 
 
-def update(table: str, values: list, condition: Value = None):
+def update(table: str, values: list, conditions: list = None):
     exec_sql("UPDATE %s SET %s" % (table, ','.join("%s='%s'" % (value.column, value.value) for value in values))
-             + " WHERE %s=%s" % (condition.column, condition.value) if condition else '', commit=True)
+             + generate_where(conditions), commit=True)
 
 
 def delete(table: str, condition: Value = None):
     exec_sql("DELETE FROM %s" % table
-             + " WHERE %s='%s'" % (condition.column, condition.value) if condition else '', commit=True)
+             + (" WHERE %s='%s'" % (condition.column, condition.value) if condition else ''), commit=True)
 
 
-def get_wrapper_as_values(wrapper, type):
-    if type == 'ARTIST':
+def get_wrapper_as_values(wrapper, type: ph.Type):
+    if type == ph.Type.ARTIST:
         return [
             Value('library_key', app.key_num(wrapper.key)),
             Value('name', quote(wrapper.title)),
@@ -118,7 +131,7 @@ def get_wrapper_as_values(wrapper, type):
             Value('thumb', path.basename(wrapper.thumb) if wrapper.thumb else 0),
             Value('album_count', wrapper.num_albums)
         ]
-    elif type == 'ALBUM':
+    elif type == ph.Type.ALBUM:
         return [
             Value('library_key', app.key_num(wrapper.key)),
             Value('name', quote(wrapper.title)),
@@ -131,7 +144,7 @@ def get_wrapper_as_values(wrapper, type):
             Value('track_count', wrapper.num_tracks),
             Value('total_size', wrapper.total_size)
         ]
-    elif type == 'TRACK':
+    elif type == ph.Type.TRACK:
         return [
             Value('library_key', app.key_num(wrapper.key)),
             Value('name', quote(wrapper.title)),
@@ -154,12 +167,12 @@ def get_wrapper_as_values(wrapper, type):
 
 def update_after_refresh(data):
     for entry in data:
-        type = entry['type']
+        type = ph.Type[entry['type']]
 
         table = {
-            'ARTIST': 'artists',
-            'ALBUM': 'albums',
-            'TRACK': 'tracks'
+            ph.Type.ARTIST: 'artists',
+            ph.Type.ALBUM: 'albums',
+            ph.Type.TRACK: 'tracks'
         }.get(type)
 
         if entry['deleted']:
@@ -168,11 +181,11 @@ def update_after_refresh(data):
         else:
             media = ph.get_by_key(entry['library_key'])
 
-            if type == 'ARTIST':
+            if type == ph.Type.ARTIST:
                 wrapper = ph.ArtistWrapper(media)
-            elif type == 'ALBUM':
+            elif type == ph.Type.ALBUM:
                 wrapper = ph.AlbumWrapper(media)
-            elif type == 'TRACK':
+            elif type == ph.Type.TRACK:
                 wrapper = ph.TrackWrapper(media)
 
             info = get_wrapper_as_values(wrapper, type)
@@ -186,11 +199,20 @@ def get_artists():
 
 
 def get_artist_by_key(library_key: int):
-    return get_one('artists', conditions=['library_key', library_key])
+    return get_one('artists', conditions=[Value('library_key', library_key)])
 
 
 def get_artist_by_name(name: str):
     return get_one('artists', conditions=[Value('name', quote(name))])
+
+
+def update_artist(row):
+    update('artists', row, [row[0]])
+    print("Updated artist: %s." % row[1])
+
+
+def get_album_by_key(library_key: int):
+    return get_one('albums', conditions=[Value('library_key', library_key)])
 
 
 def get_albums_for(artist_key: int):
@@ -201,9 +223,32 @@ def get_album_for(artist_key: int, name: str):
     return get_one('albums', conditions=[Value('artist_key', artist_key), Value('name', quote(name))])
 
 
+def update_album(row):
+    update('albums', row, conditions=[row[0]])
+    print("Updated album: %s." % row[1])
+
+
+def get_track_by_key(library_key: int):
+    return get_one('tracks', conditions=[Value('library_key', library_key)])
+
+
 def get_tracks_for(album_key: int):
     return get_all('tracks', conditions=[Value('album_key', album_key)])
 
 
 def get_track_for(album_key: int, name: str):
     return get_one('tracks', conditions=[Value('album_key', album_key), Value('name', quote(name))])
+
+
+def update_track(row):
+    update('tracks', row, conditions=[row[0]])
+    print("Updated track: %s." % row[1])
+
+
+def get_table_for(media_type: ph.Type):
+    return {
+        ph.Type.ARTIST: 'artists',
+        ph.Type.ALBUM: 'albums',
+        ph.Type.TRACK: 'tracks'
+
+    }.get(media_type)
