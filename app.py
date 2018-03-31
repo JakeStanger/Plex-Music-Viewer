@@ -1,17 +1,19 @@
+import sched
+import time
+from collections import defaultdict
 from functools import wraps
 from io import BytesIO
-from os import path, symlink, makedirs, environ
-from timeit import default_timer as timer
+from multiprocessing import Process, Manager
+from os import path, symlink, makedirs
 from urllib.request import urlopen
-from urllib.parse import quote
 from zipfile import ZipFile
 
 from PIL import Image
 from flask import Flask, render_template, send_file, redirect, url_for, flash
 from flask_login import LoginManager, login_required, login_user, logout_user
-from plexapi.library import Library
+from pymysql import IntegrityError
 
-from plexapi.server import PlexServer
+from plexapi.exceptions import NotFound
 from simplejson import dumps, load
 from werkzeug.security import generate_password_hash, check_password_hash
 
@@ -20,6 +22,8 @@ import plex_helper as ph
 from accounts import User, Permission, PermissionType
 from helper import *
 from plex_api_extras import getDownloadLocationPOST, get_additional_track_data
+from plexapi.library import Library, LibrarySection
+from plexapi.server import PlexServer
 
 # Flask configuration
 app = Flask(__name__)
@@ -30,6 +34,10 @@ app.jinja_env.globals.update(int=int)
 app.jinja_env.globals.update(get_additional_track_data=get_additional_track_data)
 
 
+manager = Manager()
+_update_stack = manager.list()
+
+
 def trigger_database_update():
     cache = db.get_cache()
     if len(cache) > 0:
@@ -38,30 +46,40 @@ def trigger_database_update():
 
 
 def listen(msg):
-
     if msg['type'] == 'timeline':
         timeline_entry = msg['TimelineEntry'][0]
 
+        # item = ph.get_by_key(timeline_entry['itemID'])
+        # type = ph.Type(timeline_entry['type']).name
+
+        #_update_stack.append({item: type})
+
+
+        # print(msg)
+
         state = timeline_entry['metadataState']
-        if state != 'created' and state != 'deleted':
-            return
 
         data = {
             'section_id': timeline_entry['sectionID'],
             'library_key': timeline_entry['itemID'],
-            'type': ph.Type(timeline_entry['type']).name,
-            'deleted': state == 'deleted'
+            'type': ph.Type(timeline_entry['type']),
+            # 'deleted': state == 'deleted',
         }
 
-        # Avoid duplicates
-        for entry in db.get_cache():
-            if entry['library_key'] == data['library_key'] and entry['section_id'] == data['section_id']:
-                return
+        # print(data)
 
-        db.insert_into_cache(data)
+        if data not in _update_stack:
+            _update_stack.append(data)
 
-    if msg['type'] == 'backgroundProcessingQueue':
-        trigger_database_update()
+        print(_update_stack)
+    #
+    #     db.update_after_refresh([data])
+    #
+    #     if 'updatedAt' in timeline_entry:
+    #
+    #
+    elif msg['type'] == 'backgroundProcessingQueue':
+        update_database()
 
 
 # @app.before_request
@@ -121,7 +139,7 @@ def get_music() -> Library:
 
 
 def key_num(key):
-    return path.basename(key)
+    return int(path.basename(key))
 
 
 @app.errorhandler(404)
@@ -497,93 +515,135 @@ def image(thumb_id, width=None):
         throw_error(400, "invalid thumb-id")
 
 
+def get_parents(media, parents):
+    parent = media.parent()
+    if parent is not None:
+        # Add to front so we create nodes in
+        # The correct order.
+        parents.insert(0, parent)
+        get_parents(parent, parents)
+
+    return parents
+
+
+def do_recursive_db_update(media):
+    print("--", media.title, "--")
+    if media is None:
+        return
+
+    if type(media) == LibrarySection:
+        children = media.all()
+    else:
+        children = media.children()
+
+    if children is not None:
+        for child in children:
+            print(child.title)
+
+            child_type = ph.Type.get(child)
+            data = db.get_wrapper_as_values(child, child_type)
+            table = db.get_table_for(child_type)
+
+            if not db.get_one(table, conditions=data):
+                parent_nodes = get_parents(child, [])
+                print("^^", ', '.join(m.title for m in parent_nodes))
+
+                for node in parent_nodes:
+                    parent_type = ph.Type.get(node)
+                    parent_table = db.get_table_for(parent_type)
+                    if not db.get_one(parent_table, conditions=[db.Value('library_key', key_num(node.key))]):
+                        print(node.key)
+                        parent_data = db.get_wrapper_as_values(node, parent_type)
+                        db.insert_direct(parent_table, parent_data)
+
+                db.insert_direct(table, data, overwrite=True)
+
+    parent = media.parent()
+    if parent is not None:
+        do_recursive_db_update(parent)
+
+
+def do_database_update(names: dict=None, deep=False, drop_old=False):
+    """
+        Scans the Plex server for changes, and writes them
+        to the database.
+
+        :param names: A nested dictionary of artists, albums and tracks to update.
+        Leave empty to update the entire database.
+
+        :param deep: Scan every artist, album and track. By default the scanner
+        only scans objects where the parent has changed, meaning metadata edits
+        will not be picked up. New or albums and tracks will be detected.
+
+        :param drop_old: Delete the current contents of the database
+        and perform a complete refresh.
+
+        :return: Dictionary of changed media elements
+        """
+    # Return data
+    updated = {}
+
+    if drop_old:
+        db.delete('tracks')
+        db.delete('albums')
+        db.delete('artists')
+
+    if names:
+        artists = [ph.get_artist(name) for name in names.keys()]
+    else:
+        artists = ph.get_artists()
+
+    for artist in artists:
+        print(artist.title)
+        data = db.get_wrapper_as_values(artist, ph.Type.ARTIST)
+
+        scan_albums = False
+        if not db.get_one('artists', conditions=data):
+            db.insert_direct('artists', data, overwrite=True)
+            updated[artist.title] = {}
+            scan_albums = True
+
+        if scan_albums or deep:
+            if names:
+                albums = [ph.get_album(artist.title, album_name) for album_name in names.get(artist.title).keys()]
+            else:
+                albums = artist.albums()
+
+            for album in albums:
+                print("\t%s" % album.title)
+                data = db.get_wrapper_as_values(album, ph.Type.ALBUM)
+
+                scan_tracks = False
+                if not db.get_one('albums', conditions=data):
+                    db.insert_direct('albums', data, overwrite=True)
+                    updated[artist.title][album.title] = []
+                    scan_tracks = True
+
+                if scan_tracks or deep:
+                    if names:
+                        tracks = [ph.get_track(artist.title, album.title, track_name)
+                                  for track_name in names.get(artist.title).get(album.title)]
+                    else:
+                        tracks = album.tracks()
+
+                    for track in tracks:
+                        print("\t\t%s" % track.title)
+                        data = db.get_wrapper_as_values(track, ph.Type.TRACK)
+
+                        if not db.get_one('tracks', conditions=data):
+                            db.insert_direct('tracks', data, overwrite=True)
+                            updated[artist.title][album.title].append(track.title)
+
+    return dumps(updated)
+
+
+@app.route('/update_database/<int:deep>/<int:drop_old>', methods=['POST'])
+@app.route('/update_database/<int:deep>', methods=['POST'])
 @app.route('/update_database', methods=['POST'])
 @login_required
 @admin_required
-def update_database():
-    # Return data
-    updated = {
-        'artists': [],
-        'albums': [],
-        'tracks': []
-    }
-
-    # artists = [ph.ArtistWrapper(artist) for artist in music.all()]
-    artists = music.all()
-    num_artists = len(artists)
-    i = 1
-    for a in artists:
-        artist = ph.ArtistWrapper(a)
-
-        print("(%r/%r): %s" % (i, num_artists, artist.title))
-        i += 1
-
-        albums = artist.albums()
-        num_albums = len(albums)
-        artist_values = [
-            db.Value('library_key', key_num(artist.key)),
-            db.Value('name', quote(artist.title)),
-            db.Value('name_sort', quote(artist.titleSort)),
-            db.Value('thumb', path.basename(artist.thumb) if artist.thumb else 0),
-            db.Value('album_count', num_albums)
-        ]
-
-        if not db.get_one('artists', conditions=artist_values):
-            db.insert_direct('artists', artist_values, overwrite=True)
-            updated['artists'].append(artist.title)
-
-        j = 1
-        for album in albums:
-            print("\t(%r/%r): %s" % (j, num_albums, album.title))
-            j += 1
-
-            tracks = album.tracks()
-            num_tracks = len(tracks)
-
-            album_values = [
-                db.Value('library_key', key_num(album.key)),
-                db.Value('name', quote(album.title)),
-                db.Value('name_sort', quote(album.titleSort)),
-                db.Value('artist_key', key_num(artist.key)),
-                db.Value('artist_name', quote(artist.title)),
-                db.Value('year', album.year),
-                db.Value('genres', ','.join(album.genres)),
-                db.Value('thumb', path.basename(album.thumb) if album.thumb else 0),
-                db.Value('track_count', num_tracks),
-                db.Value('total_size', sum(track.size for track in tracks))
-            ]
-
-            if not db.get_one('albums', conditions=album_values):
-                db.insert_direct('albums', album_values, overwrite=True)
-                updated['albums'].append(album.title)
-
-            k = 1
-            for track in tracks:
-                print("\t\t(%r/%r): %s" % (k, num_tracks, track.title))
-                k += 1
-
-                track_values = [
-                    db.Value('library_key', key_num(track.key)),
-                    db.Value('name', quote(track.title)),
-                    db.Value('name_sort', quote(track.titleSort)),
-                    db.Value('artist_key', key_num(artist.key)),
-                    db.Value('artist_name', quote(artist.title)),
-                    db.Value('album_key', key_num(album.key)),
-                    db.Value('album_name', quote(album.title)),
-                    db.Value('duration', track.duration),
-                    db.Value('track_num', track.index),
-                    db.Value('disc_num', track.parentIndex),
-                    db.Value('download_url', quote(track.downloadURL)),
-                    db.Value('bitrate', track.bitrate),
-                    db.Value('size', track.size),
-                    db.Value('format', track.format)
-                ]
-
-                if not db.get_one('tracks', conditions=track_values):
-                    db.insert_direct('tracks', track_values, overwrite=True)
-                    updated['tracks'].append(track.title)
-
-    return dumps(updated)
+def update_database(names: dict=None, deep=0, drop_old=0):
+    return do_database_update(names, deep == 1, drop_old == 1)
 
 
 # TODO Tidy function
@@ -648,6 +708,48 @@ def setup():
     return render_template('index.html')
 
 
+def delete_entry(entry):
+    table = db.get_table_for(entry['type'])
+    db.delete(table, condition=db.Value('library_key', entry['library_key']))
+
+
+def process_update_stack(update_stack):  # TODO Fix updating when stack changes size during update
+    print(update_stack)
+    for entry in update_stack:
+        # print(entry)
+        try:
+            item = ph.get_by_key(entry['library_key'])
+            do_recursive_db_update(ph.wrap(item))
+        except NotFound:
+            delete_entry(entry)
+
+    update_stack[:] = []
+
+
 # --START OF PROGRAM--
 if __name__ == "__main__":
-    app.run(debug=True)
+    scheduler = sched.scheduler(time.time)
+
+    def run_process_update_stack(update_stack):
+        try:
+            process_update_stack(update_stack)
+        finally:
+            scheduler.enter(10, 1, run_process_update_stack, (update_stack,))
+
+    def run_scheduler(update_stack):
+        run_process_update_stack(update_stack)
+        scheduler.run()
+
+    # flask = Process(target=app.run, args=(None, None, debug))
+    db_updater = Process(target=run_scheduler, args=(_update_stack,))
+
+    # flask.start()
+    db_updater.start()
+
+    # flask.join()
+    # db_updater.join()
+    app.run(debug=False)
+
+    db_updater.join()
+
+

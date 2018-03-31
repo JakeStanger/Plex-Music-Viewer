@@ -31,6 +31,13 @@
 <form class="form-inline my-2 my-lg-1 mr-1" action="{{ url_for('update_database') }}" method="post">
     <button class="btn btn-outline-success my-sm-0" type="submit">Update Database</button>
 </form>
+<form class="form-inline my-2 my-lg-1 mr-1" action="{{ url_for('update_database', deep=1) }}" method="post">
+    <button class="btn btn-outline-success my-sm-0" type="submit">Deep Update Database</button>
+</form>
+<form class="form-inline my-2 my-lg-1 mr-1" action="{{ url_for('update_database', deep=1, drop_old=1) }}" method="post">
+    <button class="btn btn-outline-success my-sm-0" type="submit">Recreate Database</button>
+</form>
+
 {% endblock %}
 
 {% block footer_scripts %}
