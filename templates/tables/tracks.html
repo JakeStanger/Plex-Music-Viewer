@@ -6,7 +6,7 @@
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb">
                     <li class="breadcrumb-item"><a href="{{ url_for('artist') }}">Artists</a></li>
-                    <li class="breadcrumb-item"><a href="{{ url_for('artist', artist_name=parentTitle) }}">{{ parentTitle }}</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('artist', artist_id=parentKey) }}">{{ parentTitle }}</a></li>
                     <li class="breadcrumb-item active" aria-current="page">{{ title }}</li>
                 </ol>
             </nav>
@@ -55,19 +55,19 @@
                         <button class="btn btn-link" onclick="play(`{{ track.downloadURL }}`,
                                 '{{ ('%s-%s-%s' % (track.index, track.parentTitle, track.title)) | replace(" ", "_") }}');">
                             <span id="play-{{ ('%s-%s-%s' % (track.index, track.parentTitle, track.title)) | replace(" ", "_") }}" class="oi oi-media-play"></span></button>
-                        <a class="btn btn-link" href="{{ url_for('track', artist_name=track.grandparentTitle, album_name=track.parentTitle, track_name=track.title, download='download') }}">
+                        <a class="btn btn-link" href="{{ url_for('track', track_id=track.key, download='download') }}">
                             <span class="oi oi-data-transfer-download"></span></a>
                     </div>
 
                 </td>
-                <td><a href="{{ url_for('track', artist_name=track.grandparentTitle, album_name=track.parentTitle, track_name=track.title) }}">{{ track.title }}</a></td>
+                <td><a href="{{ url_for('track', track_id=track.key) }}">{{ track.title }}</a></td>
                 <td>{{ track.duration_formatted() }}</td>
                 <td>{{ track.bitrate }}kbps</td>
                 <td>{{ track.format }}</td>
                 <td>{{ track.size_formatted()  }}</td>
                 {% if is_search %}
-                    <td><a href="{{ url_for('album', artist_name=track.grandparentTitle, album_name=track.parentTitle) }}">{{ track.parentTitle }}</a></td>
-                    <td><a href="{{ url_for('artist', artist_name=track.grandparentTitle) }}">{{ track.grandparentTitle }}</a></td>
+                    <td><a href="{{ url_for('album', album_id=track.parentKey) }}">{{ track.parentTitle }}</a></td>
+                    <td><a href="{{ url_for('artist', artist_id=track.grandparentKey) }}">{{ track.grandparentTitle }}</a></td>
                 {% endif %}
             </tr>
         {% endfor %}

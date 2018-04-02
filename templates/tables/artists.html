@@ -6,7 +6,7 @@
         </tr>
         {% for artist in artists %}
             <tr>
-                <td><a href="{{ url_for('artist', artist_name=artist.title) }}">{{ artist.title }}</a></td>
+                <td><a href="{{ url_for('artist', artist_id=artist.key) }}">{{ artist.title }}</a></td>
                 <td>{{ artist.num_albums }}</td>
             </tr>
         {% endfor %}
