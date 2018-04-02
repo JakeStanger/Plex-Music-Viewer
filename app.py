@@ -139,7 +139,13 @@ def get_music() -> Library:
 
 
 def key_num(key):
-    return int(path.basename(key))
+    if not isinstance(key, int):
+        return int(path.basename(key))
+    else:
+        return key
+
+
+app.jinja_env.globals.update(key_num=key_num)
 
 
 @app.errorhandler(404)
