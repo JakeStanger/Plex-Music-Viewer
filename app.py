@@ -242,15 +242,15 @@ def index():
 
 
 @app.route('/artist')
-@app.route("/artist/<artist_name>")
+@app.route("/artist/<int:artist_id>")
 @login_required
 @require_permission(PermissionType.MUSIC, Permission.VIEW)
-def artist(artist_name=None):
-    if artist_name:
+def artist(artist_id: int=None):
+    if artist_id:
         # artist = ph.get_artist_by_key(artist_name)
         # return render_template('table.html', albums=artist.albums(), title=artist.title)
 
-        artist = ph.ArtistWrapper(row=db.get_artist_by_name(artist_name))
+        artist = ph.ArtistWrapper(row=db.get_artist_by_key(artist_id))
         albums = [ph.AlbumWrapper(row=row) for row in db.get_albums_for(artist.key)]
         albums.sort(key=lambda x: x.year, reverse=True)
 
@@ -262,29 +262,28 @@ def artist(artist_name=None):
         return render_template('table.html', artists=artists, title="Artists")
 
 
-@app.route("/artist/<artist_name>/<album_name>")
+@app.route("/album/<int:album_id>")
 @login_required
 @require_permission(PermissionType.MUSIC, Permission.VIEW)
-def album(artist_name, album_name):
-    artist = ph.ArtistWrapper(row=db.get_artist_by_name(artist_name))
-    album = ph.AlbumWrapper(row=db.get_album_for(artist.key, album_name))
+def album(album_id: int):
+    album = ph.AlbumWrapper(row=db.get_album_by_key(album_id))
     tracks = [ph.TrackWrapper(row=row) for row in db.get_tracks_for(album.key)]
     tracks = sorted(tracks, key=lambda x: (x.parentIndex, x.index))
 
-    return render_template('table.html', tracks=tracks, title=album.title,
+    return render_template('table.html', tracks=tracks, title=album.title, parentKey=album.parentKey,
                            parentTitle=album.parentTitle, settings=settings, totalSize=album.size_formatted())
 
 
-@app.route("/artist/<artist_name>/<album_name>/<track_name>")
-@app.route("/artist/<artist_name>/<album_name>/<track_name>/<download>")
+@app.route("/track/<int:track_id>")
+@app.route("/track/<int:track_id>/<download>")
 @login_required
 @require_permission(PermissionType.MUSIC, Permission.VIEW)
-def track(artist_name, album_name, track_name, download=False):
-    track = ph.get_track(artist_name, album_name, track_name)
+def track(track_id: int, download=False):
+    track = ph.TrackWrapper(row=db.get_track_by_key(track_id))
 
     if download:
         return send_file(track.downloadURL, mimetype="audio",
-                         as_attachment=True, attachment_filename='%s.%s' % (track_name, track.format))
+                         as_attachment=True, attachment_filename='%s.%s' % (track.title, track.format))
     else:
         return redirect(track.downloadURL)
 
@@ -374,7 +373,7 @@ def logout():
 @login_required
 @admin_required
 def delete_user_by_name(username):
-    db.update('users', [db.Value('is_deleted', 1)], db.Value('LOWER(username)', username.lower()))
+    db.update('users', [db.Value('is_deleted', 1)], [db.Value('LOWER(username)', username.lower())])
 
     if request.method == 'POST':
         flash("User '%s' successfully deleted." % username, category='success')
@@ -397,7 +396,7 @@ def delete_user_by_id(id: int, restore=False):
     :return:
     """
 
-    db.update('users', [db.Value('is_deleted', 0 if restore else 1)], db.Value('user_id', id))
+    db.update('users', [db.Value('is_deleted', 0 if restore else 1)], [db.Value('user_id', id)])
 
     message = "User with ID %r' successfully %s." % (id, "restored" if restore else 'deleted')
     if request.method == 'POST':
@@ -419,7 +418,7 @@ def edit_user_by_id(id: int):
         db.Value('tv_perms', form.get('tv_perms')),
         db.Value('is_admin', form.get('is_admin'))
     ],
-              db.Value('user_id', id))
+              [db.Value('user_id', id)])
 
     message = "User with ID %r' successfully edited." % id
     if request.method == 'POST':
