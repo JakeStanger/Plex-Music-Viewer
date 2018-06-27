@@ -1,6 +1,7 @@
 import math
 from enum import Enum
 from json import dumps
+from typing import Union
 
 import app
 import database as db
@@ -152,12 +153,12 @@ class TrackWrapper:
     def parent(self) -> AlbumWrapper:
         return AlbumWrapper(self._track.album())
 
-    def duration_formatted(self):
+    def duration_formatted(self) -> str:
         minutes = math.floor(self.duration / 60000)
         seconds = math.floor((self.duration % 60000) / 1000)
         return str(minutes) + ":" + ('0' if seconds < 10 else '') + str(seconds)
 
-    def size_formatted(self):
+    def size_formatted(self) -> str:
         sizes = ['B', 'kiB', 'MiB', 'GiB', 'TiB']
         if self.size == 0:
             return '0B'
@@ -166,11 +167,11 @@ class TrackWrapper:
         return ('%.3g' % (self.size / math.pow(1024, i))) + ' ' + sizes[i]
 
 
-def get_artists():
+def get_artists() -> list:
     return [ArtistWrapper(artist) for artist in app.get_music().all()]
 
 
-def get_artist(artist_name:str=None):
+def get_artist(artist_name: str=None) -> Union[ArtistWrapper, None]:
     """
     :param artist_name: An artist name
     :return: The artist
@@ -183,7 +184,7 @@ def get_artist(artist_name:str=None):
     return None
 
 
-def get_album(artist_name, album_name):
+def get_album(artist_name: str, album_name: str) -> Union[AlbumWrapper, None]:
     """
     :param artist_name: An artist name
     :param album_name: An album name

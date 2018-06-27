@@ -1,10 +1,14 @@
+"""
+Used for generating queries when using own database.
+"""
+
 from os import path
 from urllib.parse import quote
 
 from flaskext.mysql import MySQL
-from plexapi.audio import Artist, Album, Track
-import plex_helper as ph
+
 import app
+import plex_helper as ph
 
 mysql = None
 _cache = []
