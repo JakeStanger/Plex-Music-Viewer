@@ -1,14 +1,10 @@
 import sched
 import time
 from functools import wraps
-from io import BytesIO
 from multiprocessing import Process, Manager
 from os import path, symlink, makedirs
-from urllib.request import urlopen
-from urllib.request import unquote
 from zipfile import ZipFile
 
-from PIL import Image
 from flask import Flask, render_template, send_file, redirect, url_for, flash
 from flask_login import LoginManager, login_required, login_user, logout_user
 from plexapi.exceptions import NotFound
@@ -18,11 +14,11 @@ from simplejson import dumps, load
 from werkzeug.security import generate_password_hash, check_password_hash
 
 import database as db
+import images
 import plex_helper as ph
 from accounts import User, Permission, PermissionType
 from helper import *
 from plex_api_extras import getDownloadLocationPOST, get_additional_track_data
-from magic import Magic
 
 # Flask configuration
 app = Flask(__name__)
@@ -125,7 +121,7 @@ def get_app():
     return app
 
 
-def get_settings():
+def get_settings() -> dict:
     global settings
     return settings
 
@@ -175,7 +171,8 @@ def import_user():
             'User argument not passed and Flask-Login current_user could not be imported.')
 
 
-def require_permission(permission_type: PermissionType, permission: Permission, get_user=import_user):  # TODO Require login here rather than on all functions
+def require_permission(permission_type: PermissionType, permission: Permission,
+                       get_user=import_user):  # TODO Require login here rather than on all functions
     """
     Decorating a function with this ensures the current
     user has permission to load to page.
@@ -211,7 +208,7 @@ def admin_required(func, get_user=import_user):
     return admin_wrapper
 
 
-def get_users(with_password=False):
+def get_users(with_password: bool=False):
     return db.get_all('users',
                       not with_password and ['user_id', 'username', 'music_perms', 'movie_perms', 'tv_perms',
                                              'is_admin'], [db.Value('is_deleted', 0)])
@@ -250,9 +247,6 @@ def index():
 @require_permission(PermissionType.MUSIC, Permission.VIEW)
 def artist(artist_id: int = None):
     if artist_id:
-        # artist = ph.get_artist_by_key(artist_name)
-        # return render_template('table.html', albums=artist.albums(), title=artist.title)
-
         artist = ph.ArtistWrapper(row=db.get_artist_by_key(artist_id))
         albums = [ph.AlbumWrapper(row=row) for row in db.get_albums_for(artist.key)]
         albums.sort(key=lambda x: x.year, reverse=True)
@@ -277,23 +271,32 @@ def album(album_id: int):
                            parentTitle=album.parentTitle, settings=settings, totalSize=album.size_formatted())
 
 
+# @app.route("/track/<int:track_id>")
+# @app.route("/track/<int:track_id>/<download>")
+# @login_required
+# @require_permission(PermissionType.MUSIC, Permission.VIEW)
+# def track(track_id: int, download=False):
+#     track = ph.TrackWrapper(row=db.get_track_by_key(track_id))
+#
+#     decoded = unquote(track.downloadURL)
+#
+#     mime = Magic(mime=True)
+#     mimetype = mime.from_file(decoded)
+#
+#     return send_file(decoded, mimetype=mimetype,
+#                      as_attachment=download, attachment_filename='%s.%s' % (track.title, track.format))
+
+
 @app.route("/track/<int:track_id>")
-@app.route("/track/<int:track_id>/<download>")
-@login_required
-@require_permission(PermissionType.MUSIC, Permission.VIEW)
-def track(track_id: int, download=False):
+def track(track_id: int):
     track = ph.TrackWrapper(row=db.get_track_by_key(track_id))
+    thumb_id = track.parent().thumb
 
-    decoded = unquote(track.downloadURL)
+    banner_colour = images.get_predominant_colour(thumb_id)
+    text_colour = images.get_text_colour(banner_colour)
 
-    mime = Magic(mime=True)
-    mimetype = mime.from_file(decoded)
-
-    if download:
-        return send_file(decoded, mimetype=mimetype,
-                         as_attachment=True, attachment_filename='%s.%s' % (track.title, track.format))
-    else:
-        return send_file(decoded, mimetype=mimetype)
+    return render_template('track.html', track=track, thumb_id=thumb_id,
+                           banner_colour=banner_colour, text_colour=text_colour, lyrics=track.lyrics().split("\n"))
 
 
 @app.route("/search", methods=['GET', 'POST'])
@@ -363,10 +366,11 @@ def sign_up():
 
     hashed_password = generate_password_hash(password)
 
+    # Create user with no permissions
+    # TODO Allow default permissions to be set in settings
     data = db.call_proc('sp_createUser', (username, hashed_password, 0, 0, 0, 0))
 
     if len(data) == 0:
-
         user = get_user(username)
         login_user(user, remember)
         return redirect(url_for('index'))
@@ -416,6 +420,16 @@ def delete_user_by_id(id: int, restore=False):
         return redirect(request.referrer)
     else:
         return dumps({'message': message})
+
+
+@login_required
+@admin_required
+def restore_user_by_id(id: int):
+    """
+    Alias for :func:`delete_user_by_id<app.delete_user_by_id>`.
+    Restore is passed as True of course.
+    """
+    delete_user_by_id(id, True)
 
 
 @login_required
@@ -499,31 +513,7 @@ def zip(artist_name, album_name):
 # @login_required
 # @require_permission(PermissionType.MUSIC, Permission.VIEW)
 def image(thumb_id, width=None):
-    """
-    Returns the image for the given thumb-id. It is important to
-    note that the thumb-id has the initial slash truncated.
-    :param thumb_id:
-    :param width:
-    :return:
-    """
-    thumb_id = '/' + thumb_id
-    url = settings['serverAddress'] + thumb_id + "?X-Plex-Token=" + settings['serverToken']
-
-    try:
-        file = BytesIO(urlopen(url).read())
-        image = Image.open(file)
-
-        if width:
-            size = int(width), int(width)
-            image.thumbnail(size, Image.ANTIALIAS)
-
-        tmp_image = BytesIO()
-        image.save(tmp_image, 'PNG', quality=90)
-        tmp_image.seek(0)
-
-        return send_file(tmp_image, mimetype='image/png')
-    except:
-        throw_error(400, "invalid thumb-id")
+    return send_file(images.get_image(thumb_id, width), mimetype='image/png')
 
 
 def get_parents(media, parents):
