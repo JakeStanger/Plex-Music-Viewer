@@ -9,4 +9,5 @@ simplejson
 pillow
 Image
 flask-mysql
+flask-login
 lyricsgenius
