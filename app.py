@@ -1,29 +1,24 @@
 import sched
 import time
-from collections import defaultdict
 from functools import wraps
-from io import BytesIO
 from multiprocessing import Process, Manager
 from os import path, symlink, makedirs
-from urllib.request import urlopen
 from zipfile import ZipFile
 
-from PIL import Image
 from flask import Flask, render_template, send_file, redirect, url_for, flash
 from flask_login import LoginManager, login_required, login_user, logout_user
-from pymysql import IntegrityError
-
 from plexapi.exceptions import NotFound
+from plexapi.library import Library, LibrarySection
+from plexapi.server import PlexServer
 from simplejson import dumps, load
 from werkzeug.security import generate_password_hash, check_password_hash
 
 import database as db
+import images
 import plex_helper as ph
 from accounts import User, Permission, PermissionType
 from helper import *
 from plex_api_extras import getDownloadLocationPOST, get_additional_track_data
-from plexapi.library import Library, LibrarySection
-from plexapi.server import PlexServer
 
 # Flask configuration
 app = Flask(__name__)
@@ -32,7 +27,6 @@ app.url_map.strict_slashes = False
 
 app.jinja_env.globals.update(int=int)
 app.jinja_env.globals.update(get_additional_track_data=get_additional_track_data)
-
 
 manager = Manager()
 _update_stack = manager.list()
@@ -52,8 +46,7 @@ def listen(msg):
         # item = ph.get_by_key(timeline_entry['itemID'])
         # type = ph.Type(timeline_entry['type']).name
 
-        #_update_stack.append({item: type})
-
+        # _update_stack.append({item: type})
 
         # print(msg)
 
@@ -128,7 +121,7 @@ def get_app():
     return app
 
 
-def get_settings():
+def get_settings() -> dict:
     global settings
     return settings
 
@@ -156,12 +149,12 @@ def page_not_found(e, custom_message=None):
 app.jinja_env.globals.update(throw_error=throw_error)
 
 
-@app.before_request
-def break_static():
-    # Let Apache handle requests on these directories
-    if request.endpoint == 'music' or request.endpoint == 'torrents':
-        abort(404)
-    return None
+# @app.before_request
+# def break_static():
+#     # Let Apache handle requests on these directories
+#     if request.endpoint == 'music' or request.endpoint == 'torrents':
+#         abort(404)
+#     return None
 
 
 def import_user():
@@ -178,7 +171,8 @@ def import_user():
             'User argument not passed and Flask-Login current_user could not be imported.')
 
 
-def require_permission(permission_type: PermissionType, permission: Permission, get_user=import_user):
+def require_permission(permission_type: PermissionType, permission: Permission,
+                       get_user=import_user):  # TODO Require login here rather than on all functions
     """
     Decorating a function with this ensures the current
     user has permission to load to page.
@@ -214,7 +208,7 @@ def admin_required(func, get_user=import_user):
     return admin_wrapper
 
 
-def get_users(with_password=False):
+def get_users(with_password: bool=False):
     return db.get_all('users',
                       not with_password and ['user_id', 'username', 'music_perms', 'movie_perms', 'tv_perms',
                                              'is_admin'], [db.Value('is_deleted', 0)])
@@ -251,11 +245,8 @@ def index():
 @app.route("/artist/<int:artist_id>")
 @login_required
 @require_permission(PermissionType.MUSIC, Permission.VIEW)
-def artist(artist_id: int=None):
+def artist(artist_id: int = None):
     if artist_id:
-        # artist = ph.get_artist_by_key(artist_name)
-        # return render_template('table.html', albums=artist.albums(), title=artist.title)
-
         artist = ph.ArtistWrapper(row=db.get_artist_by_key(artist_id))
         albums = [ph.AlbumWrapper(row=row) for row in db.get_albums_for(artist.key)]
         albums.sort(key=lambda x: x.year, reverse=True)
@@ -280,18 +271,32 @@ def album(album_id: int):
                            parentTitle=album.parentTitle, settings=settings, totalSize=album.size_formatted())
 
 
-@app.route("/track/<int:track_id>")
-@app.route("/track/<int:track_id>/<download>")
-@login_required
-@require_permission(PermissionType.MUSIC, Permission.VIEW)
-def track(track_id: int, download=False):
-    track = ph.TrackWrapper(row=db.get_track_by_key(track_id))
+# @app.route("/track/<int:track_id>")
+# @app.route("/track/<int:track_id>/<download>")
+# @login_required
+# @require_permission(PermissionType.MUSIC, Permission.VIEW)
+# def track(track_id: int, download=False):
+#     track = ph.TrackWrapper(row=db.get_track_by_key(track_id))
+#
+#     decoded = unquote(track.downloadURL)
+#
+#     mime = Magic(mime=True)
+#     mimetype = mime.from_file(decoded)
+#
+#     return send_file(decoded, mimetype=mimetype,
+#                      as_attachment=download, attachment_filename='%s.%s' % (track.title, track.format))
 
-    if download:
-        return send_file(track.downloadURL, mimetype="audio",
-                         as_attachment=True, attachment_filename='%s.%s' % (track.title, track.format))
-    else:
-        return redirect(track.downloadURL)
+
+@app.route("/track/<int:track_id>")
+def track(track_id: int):
+    track = ph.TrackWrapper(row=db.get_track_by_key(track_id))
+    thumb_id = track.parent().thumb
+
+    banner_colour = images.get_predominant_colour(thumb_id)
+    text_colour = images.get_text_colour(banner_colour)
+
+    return render_template('track.html', track=track, thumb_id=thumb_id,
+                           banner_colour=banner_colour, text_colour=text_colour, lyrics=track.lyrics().split("\n"))
 
 
 @app.route("/search", methods=['GET', 'POST'])
@@ -331,22 +336,26 @@ def get_user(user):
 
 @app.route("/login", methods=['GET', 'POST'])
 def login():
+    display_flash = False
+
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
         remember = request.form.get('remember') is not None
         user = get_user(username)
+
         if user:
             if check_password_hash(user.hashed_password, password):
                 login_user(user, remember)
                 return redirect(request.args.get('next') or url_for('index'))
             else:
-                return "Incorrect password"
+                flash("Incorrect password", category='error')
+                display_flash = True
         else:
-            return "Incorrect username"
+            flash("Incorrect username", category='error')
+            display_flash = True
 
-    else:  # Display page on GET request
-        return render_template('accounts.html', title="Log in")
+    return render_template('accounts.html', title="Log in", force_display=display_flash)
 
 
 @app.route('/signup', methods=['POST'])
@@ -357,10 +366,11 @@ def sign_up():
 
     hashed_password = generate_password_hash(password)
 
+    # Create user with no permissions
+    # TODO Allow default permissions to be set in settings
     data = db.call_proc('sp_createUser', (username, hashed_password, 0, 0, 0, 0))
 
     if len(data) == 0:
-
         user = get_user(username)
         login_user(user, remember)
         return redirect(url_for('index'))
@@ -410,6 +420,16 @@ def delete_user_by_id(id: int, restore=False):
         return redirect(request.referrer)
     else:
         return dumps({'message': message})
+
+
+@login_required
+@admin_required
+def restore_user_by_id(id: int):
+    """
+    Alias for :func:`delete_user_by_id<app.delete_user_by_id>`.
+    Restore is passed as True of course.
+    """
+    delete_user_by_id(id, True)
 
 
 @login_required
@@ -493,31 +513,7 @@ def zip(artist_name, album_name):
 # @login_required
 # @require_permission(PermissionType.MUSIC, Permission.VIEW)
 def image(thumb_id, width=None):
-    """
-    Returns the image for the given thumb-id. It is important to
-    note that the thumb-id has the initial slash truncated.
-    :param thumb_id:
-    :param width:
-    :return:
-    """
-    thumb_id = '/' + thumb_id
-    url = settings['serverAddress'] + thumb_id + "?X-Plex-Token=" + settings['serverToken']
-
-    try:
-        file = BytesIO(urlopen(url).read())
-        image = Image.open(file)
-
-        if width:
-            size = int(width), int(width)
-            image.thumbnail(size, Image.ANTIALIAS)
-
-        tmp_image = BytesIO()
-        image.save(tmp_image, 'PNG', quality=90)
-        tmp_image.seek(0)
-
-        return send_file(tmp_image, mimetype='image/png')
-    except:
-        throw_error(400, "invalid thumb-id")
+    return send_file(images.get_image(thumb_id, width), mimetype='image/png')
 
 
 def get_parents(media, parents):
@@ -568,7 +564,7 @@ def do_recursive_db_update(media):
         do_recursive_db_update(parent)
 
 
-def do_database_update(names: dict=None, deep=False, drop_old=False):
+def do_database_update(names: dict = None, deep=False, drop_old=False):
     """
         Scans the Plex server for changes, and writes them
         to the database.
@@ -647,7 +643,7 @@ def do_database_update(names: dict=None, deep=False, drop_old=False):
 @app.route('/update_database', methods=['POST'])
 @login_required
 @admin_required
-def update_database(names: dict=None, deep=0, drop_old=0):
+def update_database(names: dict = None, deep=0, drop_old=0):
     return do_database_update(names, deep == 1, drop_old == 1)
 
 
@@ -719,7 +715,7 @@ def delete_entry(entry):
 
 
 def process_update_stack(update_stack):  # TODO Fix updating when stack changes size during update
-    print(update_stack)
+    # print(update_stack)
     for entry in update_stack:
         # print(entry)
         try:
@@ -735,15 +731,18 @@ def process_update_stack(update_stack):  # TODO Fix updating when stack changes 
 if __name__ == "__main__":
     scheduler = sched.scheduler(time.time)
 
+
     def run_process_update_stack(update_stack):
         try:
             process_update_stack(update_stack)
         finally:
             scheduler.enter(10, 1, run_process_update_stack, (update_stack,))
 
+
     def run_scheduler(update_stack):
         run_process_update_stack(update_stack)
         scheduler.run()
+
 
     # flask = Process(target=app.run, args=(None, None, debug))
     db_updater = Process(target=run_scheduler, args=(_update_stack,))
@@ -756,5 +755,3 @@ if __name__ == "__main__":
     app.run(debug=False)
 
     db_updater.join()
-
-

@@ -1,7 +1,12 @@
+magic
+werkzeug
+scipy
+numpy
 plexapi
 flask
 xmltodict
 simplejson
 pillow
-mod_wsgi
+Image
 flask-mysql
+lyricsgenius

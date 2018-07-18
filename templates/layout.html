@@ -7,8 +7,6 @@
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css')}}">
     {% block head %}{% endblock %}
-
-    <link href="https://fonts.googleapis.com/css?family=Open+Sans:400" rel="stylesheet">
 </head>
 <body>
 <nav class="navbar navbar-expand-lg navbar-light bg-light">
@@ -53,8 +51,9 @@
     </form>
   </div>
 </nav>
+{% block body_before %}{% endblock %}
 <div class="container">
-    {% if title != 'Login' or force_display %}
+    {% if title != 'Log in' or force_display %}
         {% with messages = get_flashed_messages(with_categories=true) %}
           <!-- Categories: success (green), info (blue), warning (yellow), danger (red) -->
           {% if messages %}
