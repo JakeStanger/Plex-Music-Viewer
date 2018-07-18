@@ -1,4 +1,5 @@
 import math
+import os
 from enum import Enum
 from json import dumps
 from typing import Union
@@ -8,6 +9,7 @@ import database as db
 from plex_api_extras import get_additional_track_data
 from plexapi.audio import Artist, Album, Track
 from urllib.parse import unquote
+import lyricsgenius as genius
 
 
 class ArtistWrapper:
@@ -74,9 +76,12 @@ class AlbumWrapper:
             self.parentTitle = unquote(row[4])
             self.year = row[5]
             self.genres = row[6].split(',')
-            self.thumb = row[7]
+            self.thumb = "/library/metadata/%r/thumb/%r" %(row[0], row[7])
             self.num_tracks = row[8]
             self.total_size = row[9]
+
+        if self.thumb.startswith('/'):  # TODO Crop / from all database entries
+            self.thumb = self.thumb[1:]
 
     def track(self, track_name):
         if self._album:
@@ -151,7 +156,10 @@ class TrackWrapper:
         return None
 
     def parent(self) -> AlbumWrapper:
-        return AlbumWrapper(self._track.album())
+        if hasattr(self, '_track'):
+            return AlbumWrapper(self._track.album())
+        else:
+            return AlbumWrapper(row=db.get_album_by_key(self.parentKey))
 
     def duration_formatted(self) -> str:
         minutes = math.floor(self.duration / 60000)
@@ -165,6 +173,25 @@ class TrackWrapper:
 
         i = int(math.floor(math.log(self.size) / math.log(1024)))
         return ('%.3g' % (self.size / math.pow(1024, i))) + ' ' + sizes[i]
+
+    def lyrics(self):
+        # Remove illegal characters (full stops get interpreted weirdly by lyricsgenius)
+        filename = 'lyrics/%s - %s.txt' % (self.grandparentTitle.replace(".", "").replace("/", "-"),
+                                           self.title.replace(".", "").replace("/", "-"))
+
+        if os.path.exists(filename):
+            with open(filename, 'r') as f:
+                return f.read()
+
+        g = genius.Genius(app.settings['genius_api'])
+
+        if not os.path.exists('lyrics'):
+            os.makedirs('lyrics')
+
+        song = g.search_song(self.title, artist_name=self.grandparentTitle, take_first_result=True)
+
+        song.save_lyrics(filename, overwrite=True)
+        return song.lyrics
 
 
 def get_artists() -> list:
