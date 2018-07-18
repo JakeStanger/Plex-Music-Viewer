@@ -19,17 +19,15 @@
     </div>
 {% endblock %}
 {% block body %}
-    <div class="col-md">
-            <nav aria-label="breadcrumb">
-                <ol class="breadcrumb">
-                    <li class="breadcrumb-item"><a href="{{ url_for('artist') }}">Artists</a></li>
-                    <li class="breadcrumb-item"><a
-                            href="{{ url_for('artist', artist_id=track.grandparentKey) }}">{{ track.grandparentTitle }}</a></li>
-                    <li class="breadcrumb-item"><a href="{{ url_for('album', artist_id=track.grandparentKey, album_id=track.parentKey) }}">{{ track.parentTitle }}</a></li>
-                    <li class="breadcrumb-item active" aria-current="page">{{ track.title }}</li>
-                </ol>
-            </nav>
-        </div>
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('artist') }}">Artists</a></li>
+            <li class="breadcrumb-item"><a
+                    href="{{ url_for('artist', artist_id=track.grandparentKey) }}">{{ track.grandparentTitle }}</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('album', artist_id=track.grandparentKey, album_id=track.parentKey) }}">{{ track.parentTitle }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ track.title }}</li>
+        </ol>
+    </nav>
     <h2>Lyrics</h2>
     <p>
     {% for line in lyrics %}
