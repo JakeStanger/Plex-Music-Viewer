@@ -1,9 +1,39 @@
 {% extends "layout.html" %}
 
 {% block head %}
-{#    <link rel="stylesheet" href="{{ url_for('static', filename='css/table.css')}}">#}
 {% endblock %}
 
+{% block body_before %}
+    <div class="jumbotron jumbotron-fluid" style="background-color: {{ banner_colour }}; color: {{ text_colour }}">
+        <div class="container">
+            <div class="row">
+                <div class="col col-md-3">
+                    <img src="{{ url_for('image', thumb_id=thumb_id, width=200) }}">
+                </div>
+                <div class="col col-md-auto">
+                    <h1 class="display-4">{{ track.index }} - {{ track.title }}</h1>
+                    <p class="lead">{{ track.grandparentTitle }} - {{ track.parentTitle }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
 {% block body %}
-
+    <div class="col-md">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('artist') }}">Artists</a></li>
+                    <li class="breadcrumb-item"><a
+                            href="{{ url_for('artist', artist_id=track.grandparentKey) }}">{{ track.grandparentTitle }}</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('album', artist_id=track.grandparentKey, album_id=track.parentKey) }}">{{ track.parentTitle }}</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">{{ track.title }}</li>
+                </ol>
+            </nav>
+        </div>
+    <h2>Lyrics</h2>
+    <p>
+    {% for line in lyrics %}
+        {{ line }}<br>
+    {% endfor %}
+    </p>
 {% endblock %}
