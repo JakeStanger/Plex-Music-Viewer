@@ -80,7 +80,7 @@ class AlbumWrapper:
             self.num_tracks = row[8]
             self.total_size = row[9]
 
-        if self.thumb.startswith('/'):  # TODO Crop / from all database entries
+        if self.thumb.startswith('/'):
             self.thumb = self.thumb[1:]
 
     def track(self, track_name):
