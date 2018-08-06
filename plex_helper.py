@@ -46,7 +46,8 @@ class ArtistWrapper:
     def children(self):
         return self.albums()
 
-    def parent(self) -> None:
+    @staticmethod
+    def parent() -> None:
         return None
 
 
@@ -76,7 +77,7 @@ class AlbumWrapper:
             self.parentTitle = unquote(row[4])
             self.year = row[5]
             self.genres = row[6].split(',')
-            self.thumb = "/library/metadata/%r/thumb/%r" %(row[0], row[7])
+            self.thumb = "/library/metadata/%r/thumb/%r" % (row[0], row[7])
             self.num_tracks = row[8]
             self.total_size = row[9]
 
@@ -152,7 +153,8 @@ class TrackWrapper:
             self.size = row[12]
             self.format = row[13]
 
-    def children(self) -> None:
+    @staticmethod
+    def children() -> None:
         return None
 
     def parent(self) -> AlbumWrapper:
@@ -284,16 +286,16 @@ def get_artist_json(artists):
     :param artists: A list of artists
     :return: A JSON string containing data for each artist
     """
-    artistList = []
+    artist_list = []
     for artist in artists:
-        artistList.append({
+        artist_list.append({
             'title': artist.title,
             'titleSort': artist.titleSort,
             'key': artist.key,
             'thumb': artist.thumb,
             'albumCount': len(artist.albums())
         })
-    return dumps(artistList)
+    return dumps(artist_list)
 
 
 def get_album_json(albums):
@@ -301,9 +303,9 @@ def get_album_json(albums):
     :param albums: A list of albums
     :return: A JSON string containing data for each album
     """
-    albumList = []
+    album_list = []
     for album in albums:
-        albumList.append({
+        album_list.append({
             'title': album.title,
             'titleSort': album.titleSort,
             'key': album.key,
@@ -313,7 +315,7 @@ def get_album_json(albums):
             'artist': album.parentTitle,
             'year': album.year
         })
-    return dumps(albumList)
+    return dumps(album_list)
 
 
 def get_track_json(tracks):
@@ -321,10 +323,10 @@ def get_track_json(tracks):
     :param tracks: A list of tracks
     :return: A JSON string containing data for each track
     """
-    trackList = []
+    track_list = []
     for track in tracks:
         additional = get_additional_track_data(track.key, app.get_settings())
-        trackList.append({
+        track_list.append({
             'title': track.title,
             'titleSort': track.titleSort,
             'key': track.key,
@@ -337,7 +339,7 @@ def get_track_json(tracks):
             'format': additional['codec'],
             'index': track.index
         })
-    return dumps(trackList)
+    return dumps(track_list)
 
 
 class Type(Enum):
