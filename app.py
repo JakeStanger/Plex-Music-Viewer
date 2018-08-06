@@ -299,6 +299,12 @@ def track(track_id: int):
                            banner_colour=banner_colour, text_colour=text_colour, lyrics=track.lyrics().split("\n"))
 
 
+@app.route('/edit_lyrics/<int:track_id>', methods=['POST'])
+def edit_lyrics(track_id: int):
+    # TODO write edited lyrics (form data) to file
+    pass
+
+
 @app.route("/search", methods=['GET', 'POST'])
 @app.route("/search/<query>", methods=['GET', 'POST'])
 @login_required

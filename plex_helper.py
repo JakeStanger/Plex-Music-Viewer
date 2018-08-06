@@ -188,7 +188,10 @@ class TrackWrapper:
         if not os.path.exists('lyrics'):
             os.makedirs('lyrics')
 
-        song = g.search_song(self.title, artist_name=self.grandparentTitle, take_first_result=True)
+        song = g.search_song(self.title, artist_name=self.grandparentTitle)
+
+        if not song:
+            return "Error fetching lyrics."
 
         song.save_lyrics(filename, overwrite=True)
         return song.lyrics
