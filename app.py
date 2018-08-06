@@ -3,10 +3,12 @@ import time
 from functools import wraps
 from multiprocessing import Process, Manager
 from os import path, symlink, makedirs
+from urllib.parse import unquote
 from zipfile import ZipFile
 
 from flask import Flask, render_template, send_file, redirect, url_for, flash
 from flask_login import LoginManager, login_required, login_user, logout_user
+from magic import Magic
 from plexapi.exceptions import NotFound
 from plexapi.library import Library, LibrarySection
 from plexapi.server import PlexServer
@@ -271,22 +273,6 @@ def album(album_id: int):
                            parentTitle=album.parentTitle, settings=settings, totalSize=album.size_formatted())
 
 
-# @app.route("/track/<int:track_id>")
-# @app.route("/track/<int:track_id>/<download>")
-# @login_required
-# @require_permission(PermissionType.MUSIC, Permission.VIEW)
-# def track(track_id: int, download=False):
-#     track = ph.TrackWrapper(row=db.get_track_by_key(track_id))
-#
-#     decoded = unquote(track.downloadURL)
-#
-#     mime = Magic(mime=True)
-#     mimetype = mime.from_file(decoded)
-#
-#     return send_file(decoded, mimetype=mimetype,
-#                      as_attachment=download, attachment_filename='%s.%s' % (track.title, track.format))
-
-
 @app.route("/track/<int:track_id>")
 def track(track_id: int):
     track = ph.TrackWrapper(row=db.get_track_by_key(track_id))
@@ -297,6 +283,22 @@ def track(track_id: int):
 
     return render_template('track.html', track=track, thumb_id=thumb_id,
                            banner_colour=banner_colour, text_colour=text_colour, lyrics=track.lyrics().split("\n"))
+
+
+@app.route("/track_file/<int:track_id>")
+@app.route("/track_file/<int:track_id>/<download>")
+@login_required
+@require_permission(PermissionType.MUSIC, Permission.VIEW)
+def track_file(track_id: int, download=False):
+    track = ph.TrackWrapper(row=db.get_track_by_key(track_id))
+
+    decoded = unquote(track.downloadURL)
+
+    mime = Magic(mime=True)
+    mimetype = mime.from_file(decoded)
+
+    return send_file(decoded, mimetype=mimetype,
+                     as_attachment=download, attachment_filename='%s.%s' % (track.title, track.format))
 
 
 @app.route('/edit_lyrics/<int:track_id>', methods=['POST'])

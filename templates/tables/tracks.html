@@ -57,11 +57,10 @@
             {{ track.index }}
         </div>
         <div class="btn-group" role="group">
-            <button class="btn btn-link" onclick="play(`{{ url_for('track', track_id=key_num(track.key)) }}`,
-                    '{{ ('%s-%s-%s' % (track.index, track.parentTitle, track.title)) | replace(" ", "_") }}');">
-                <span id="play-{{ ('%s-%s-%s' % (track.index, track.parentTitle, track.title)) | replace(" ", "_") }}"
+            <button class="btn btn-link" onclick="play(`{{ url_for('track_file', track_id=key_num(track.key)) }}`);">
+                <span id="play-{{ key_num(track.key) }}"
                       class="oi oi-media-play"></span></button>
-            <a class="btn btn-link" href="{{ url_for('track', track_id=key_num(track.key), download='download') }}">
+            <a class="btn btn-link" href="{{ url_for('track_file', track_id=key_num(track.key), download='download') }}">
                 <span class="oi oi-data-transfer-download"></span></a>
         </div>
 
