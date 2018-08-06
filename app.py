@@ -310,7 +310,7 @@ def edit_lyrics(track_id: int):
 
     flash('Lyrics successfully updated', category='success')
 
-    return track(track_id)
+    return redirect(url_for('track', track_id=track_id))
 
 
 @app.route("/search", methods=['GET', 'POST'])
