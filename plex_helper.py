@@ -13,7 +13,7 @@ import lyricsgenius as genius
 
 
 class ArtistWrapper:
-    def __init__(self, artist: Artist=None, row: list=None):
+    def __init__(self, artist: Artist = None, row: list = None):
         if not (artist or list):
             raise ValueError("Must pass an artist or database row")
 
@@ -52,7 +52,7 @@ class ArtistWrapper:
 
 
 class AlbumWrapper:
-    def __init__(self, album: Album=None, row: list=None):
+    def __init__(self, album: Album = None, row: list = None):
         if not (album or list):
             raise ValueError("Must pass an album or database row")
 
@@ -115,7 +115,7 @@ class AlbumWrapper:
 
 
 class TrackWrapper:
-    def __init__(self, track: Track=None, row: list=None):
+    def __init__(self, track: Track = None, row: list = None):
         if not (track or list):
             raise ValueError("Must pass a track or database row")
 
@@ -176,10 +176,13 @@ class TrackWrapper:
         i = int(math.floor(math.log(self.size) / math.log(1024)))
         return ('%.3g' % (self.size / math.pow(1024, i))) + ' ' + sizes[i]
 
+    def get_lyrics_filename(self):
+        return 'lyrics/%s - %s.txt' % (self.grandparentTitle.replace(".", "").replace("/", "-"),
+                                       self.title.replace(".", "").replace("/", "-"))
+
     def lyrics(self):
         # Remove illegal characters (full stops get interpreted weirdly by lyricsgenius)
-        filename = 'lyrics/%s - %s.txt' % (self.grandparentTitle.replace(".", "").replace("/", "-"),
-                                           self.title.replace(".", "").replace("/", "-"))
+        filename = self.get_lyrics_filename()
 
         if os.path.exists(filename):
             with open(filename, 'r') as f:
@@ -187,23 +190,32 @@ class TrackWrapper:
 
         g = genius.Genius(app.settings['genius_api'])
 
-        if not os.path.exists('lyrics'):
-            os.makedirs('lyrics')
-
         song = g.search_song(self.title, artist_name=self.grandparentTitle)
 
         if not song:
             return "Error fetching lyrics."
 
+        if not os.path.exists('lyrics'):
+            os.makedirs('lyrics')
+
         song.save_lyrics(filename, overwrite=True)
         return song.lyrics
+
+    def update_lyrics(self, lyrics):
+        if not os.path.exists('lyrics'):
+            os.makedirs('lyrics')
+
+        filename = self.get_lyrics_filename()
+        with open(filename, 'w') as f:
+            f.write(lyrics)
+
 
 
 def get_artists() -> list:
     return [ArtistWrapper(artist) for artist in app.get_music().all()]
 
 
-def get_artist(artist_name: str=None) -> Union[ArtistWrapper, None]:
+def get_artist(artist_name: str = None) -> Union[ArtistWrapper, None]:
     """
     :param artist_name: An artist name
     :return: The artist

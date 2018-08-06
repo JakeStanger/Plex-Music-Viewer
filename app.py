@@ -300,9 +300,17 @@ def track(track_id: int):
 
 
 @app.route('/edit_lyrics/<int:track_id>', methods=['POST'])
+@login_required
+@require_permission(PermissionType.MUSIC, Permission.EDIT)
 def edit_lyrics(track_id: int):
-    # TODO write edited lyrics (form data) to file
-    pass
+    current_track = ph.TrackWrapper(row=db.get_track_by_key(track_id))
+
+    lyrics = request.form.get('lyrics')
+    current_track.update_lyrics(lyrics)
+
+    flash('Lyrics successfully updated', category='success')
+
+    return track(track_id)
 
 
 @app.route("/search", methods=['GET', 'POST'])
