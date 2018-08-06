@@ -1,4 +1,4 @@
-magic
+python-magic
 werkzeug
 scipy
 numpy
