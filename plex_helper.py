@@ -185,8 +185,8 @@ class TrackWrapper:
         filename = self.get_lyrics_filename()
 
         if os.path.exists(filename):
-            with open(filename, 'r') as f:
-                return f.read()
+            with open(filename, 'rb') as f:
+                return f.read().decode('utf8')
 
         g = genius.Genius(app.settings['genius_api'])
 
