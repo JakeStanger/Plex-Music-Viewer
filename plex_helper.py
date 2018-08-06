@@ -13,7 +13,7 @@ import lyricsgenius as genius
 
 
 class ArtistWrapper:
-    def __init__(self, artist: Artist=None, row: list=None):
+    def __init__(self, artist: Artist = None, row: list = None):
         if not (artist or list):
             raise ValueError("Must pass an artist or database row")
 
@@ -46,12 +46,13 @@ class ArtistWrapper:
     def children(self):
         return self.albums()
 
-    def parent(self) -> None:
+    @staticmethod
+    def parent() -> None:
         return None
 
 
 class AlbumWrapper:
-    def __init__(self, album: Album=None, row: list=None):
+    def __init__(self, album: Album = None, row: list = None):
         if not (album or list):
             raise ValueError("Must pass an album or database row")
 
@@ -76,11 +77,11 @@ class AlbumWrapper:
             self.parentTitle = unquote(row[4])
             self.year = row[5]
             self.genres = row[6].split(',')
-            self.thumb = "/library/metadata/%r/thumb/%r" %(row[0], row[7])
+            self.thumb = "/library/metadata/%r/thumb/%r" % (row[0], row[7])
             self.num_tracks = row[8]
             self.total_size = row[9]
 
-        if self.thumb.startswith('/'):  # TODO Crop / from all database entries
+        if self.thumb.startswith('/'):
             self.thumb = self.thumb[1:]
 
     def track(self, track_name):
@@ -114,7 +115,7 @@ class AlbumWrapper:
 
 
 class TrackWrapper:
-    def __init__(self, track: Track=None, row: list=None):
+    def __init__(self, track: Track = None, row: list = None):
         if not (track or list):
             raise ValueError("Must pass a track or database row")
 
@@ -152,7 +153,8 @@ class TrackWrapper:
             self.size = row[12]
             self.format = row[13]
 
-    def children(self) -> None:
+    @staticmethod
+    def children() -> None:
         return None
 
     def parent(self) -> AlbumWrapper:
@@ -174,10 +176,13 @@ class TrackWrapper:
         i = int(math.floor(math.log(self.size) / math.log(1024)))
         return ('%.3g' % (self.size / math.pow(1024, i))) + ' ' + sizes[i]
 
+    def get_lyrics_filename(self):
+        return 'lyrics/%s - %s.txt' % (self.grandparentTitle.replace(".", "").replace("/", "-"),
+                                       self.title.replace(".", "").replace("/", "-"))
+
     def lyrics(self):
         # Remove illegal characters (full stops get interpreted weirdly by lyricsgenius)
-        filename = 'lyrics/%s - %s.txt' % (self.grandparentTitle.replace(".", "").replace("/", "-"),
-                                           self.title.replace(".", "").replace("/", "-"))
+        filename = self.get_lyrics_filename()
 
         if os.path.exists(filename):
             with open(filename, 'r') as f:
@@ -185,20 +190,32 @@ class TrackWrapper:
 
         g = genius.Genius(app.settings['genius_api'])
 
+        song = g.search_song(self.title, artist_name=self.grandparentTitle)
+
+        if not song:
+            return "Error fetching lyrics."
+
         if not os.path.exists('lyrics'):
             os.makedirs('lyrics')
 
-        song = g.search_song(self.title, artist_name=self.grandparentTitle, take_first_result=True)
-
         song.save_lyrics(filename, overwrite=True)
         return song.lyrics
+
+    def update_lyrics(self, lyrics):
+        if not os.path.exists('lyrics'):
+            os.makedirs('lyrics')
+
+        filename = self.get_lyrics_filename()
+        with open(filename, 'w') as f:
+            f.write(lyrics)
+
 
 
 def get_artists() -> list:
     return [ArtistWrapper(artist) for artist in app.get_music().all()]
 
 
-def get_artist(artist_name: str=None) -> Union[ArtistWrapper, None]:
+def get_artist(artist_name: str = None) -> Union[ArtistWrapper, None]:
     """
     :param artist_name: An artist name
     :return: The artist
@@ -281,16 +298,16 @@ def get_artist_json(artists):
     :param artists: A list of artists
     :return: A JSON string containing data for each artist
     """
-    artistList = []
+    artist_list = []
     for artist in artists:
-        artistList.append({
+        artist_list.append({
             'title': artist.title,
             'titleSort': artist.titleSort,
             'key': artist.key,
             'thumb': artist.thumb,
             'albumCount': len(artist.albums())
         })
-    return dumps(artistList)
+    return dumps(artist_list)
 
 
 def get_album_json(albums):
@@ -298,9 +315,9 @@ def get_album_json(albums):
     :param albums: A list of albums
     :return: A JSON string containing data for each album
     """
-    albumList = []
+    album_list = []
     for album in albums:
-        albumList.append({
+        album_list.append({
             'title': album.title,
             'titleSort': album.titleSort,
             'key': album.key,
@@ -310,7 +327,7 @@ def get_album_json(albums):
             'artist': album.parentTitle,
             'year': album.year
         })
-    return dumps(albumList)
+    return dumps(album_list)
 
 
 def get_track_json(tracks):
@@ -318,10 +335,10 @@ def get_track_json(tracks):
     :param tracks: A list of tracks
     :return: A JSON string containing data for each track
     """
-    trackList = []
+    track_list = []
     for track in tracks:
         additional = get_additional_track_data(track.key, app.get_settings())
-        trackList.append({
+        track_list.append({
             'title': track.title,
             'titleSort': track.titleSort,
             'key': track.key,
@@ -334,7 +351,7 @@ def get_track_json(tracks):
             'format': additional['codec'],
             'index': track.index
         })
-    return dumps(trackList)
+    return dumps(track_list)
 
 
 class Type(Enum):

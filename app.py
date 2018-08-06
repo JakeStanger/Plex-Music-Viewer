@@ -299,6 +299,20 @@ def track(track_id: int):
                            banner_colour=banner_colour, text_colour=text_colour, lyrics=track.lyrics().split("\n"))
 
 
+@app.route('/edit_lyrics/<int:track_id>', methods=['POST'])
+@login_required
+@require_permission(PermissionType.MUSIC, Permission.EDIT)
+def edit_lyrics(track_id: int):
+    current_track = ph.TrackWrapper(row=db.get_track_by_key(track_id))
+
+    lyrics = request.form.get('lyrics')
+    current_track.update_lyrics(lyrics)
+
+    flash('Lyrics successfully updated', category='success')
+
+    return track(track_id)
+
+
 @app.route("/search", methods=['GET', 'POST'])
 @app.route("/search/<query>", methods=['GET', 'POST'])
 @login_required

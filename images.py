@@ -112,6 +112,7 @@ def get_text_colour(hex_code: str):
     brightness = (rgb[0] * 299 + rgb[1] * 587 + rgb[2] * 114) / 1000
 
     # Brightness is from 0-255
+    # TODO Allow colour to be customised in config
     if brightness > 170:
         return '#111111'
     else:

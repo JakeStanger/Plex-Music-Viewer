@@ -11,3 +11,8 @@ body {
     /*word-wrap:break-word;*/
     /*word-break:break-all;*/
 /*}*/
+
+.breadcrumb {
+    background-color: transparent;
+    padding: 0;
+}
