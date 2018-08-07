@@ -15,9 +15,18 @@ default_settings = {
         "hostname": "localhost"
     },
     "secret_key": "",
-    "genius_api": ""
+    "genius_api": "",
+    "colors": {
+        "textDark": "#111111",
+        "textLight": "#ffffff"
+    },
+    "newUserPerms": [0, 0, 0]
 }
 
 
 def set_defaults():
+    pass
+
+
+def set_missing_as_default():
     pass
