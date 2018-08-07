@@ -199,7 +199,7 @@ class TrackWrapper:
             os.makedirs('lyrics')
 
         song.save_lyrics(filename, overwrite=True)
-        return song.lyrics
+        return song.lyrics.decode('utf8')
 
     def update_lyrics(self, lyrics):
         if not os.path.exists('lyrics'):
@@ -209,6 +209,8 @@ class TrackWrapper:
         with open(filename, 'w') as f:
             f.write(lyrics)
 
+    def update_metadata(self, category, value):
+        pass
 
 
 def get_artists() -> list:
