@@ -281,8 +281,10 @@ def track(track_id: int):
     banner_colour = images.get_predominant_colour(thumb_id)
     text_colour = images.get_text_colour(banner_colour)
 
+    lyrics = track.lyrics()
+
     return render_template('track.html', track=track, thumb_id=thumb_id,
-                           banner_colour=banner_colour, text_colour=text_colour, lyrics=track.lyrics().split("\n"))
+                           banner_colour=banner_colour, text_colour=text_colour, lyrics=lyrics.split("\n"))
 
 
 @app.route("/track_file/<int:track_id>")
@@ -313,6 +315,14 @@ def edit_lyrics(track_id: int):
     flash('Lyrics successfully updated', category='success')
 
     return redirect(url_for('track', track_id=track_id))
+
+
+@app.route('/edit_metadata/<int:track_id>', methods=['POST'])
+@login_required
+@require_permission(PermissionType.MUSIC, Permission.EDIT)
+def update_metadata(track_id: int):
+    print(request.form)
+    return str(track_id)  # TODO Write metadata updating (local, database, plex)
 
 
 @app.route("/search", methods=['GET', 'POST'])
@@ -382,9 +392,10 @@ def sign_up():
 
     hashed_password = generate_password_hash(password)
 
-    # Create user with no permissions
-    # TODO Allow default permissions to be set in settings
-    data = db.call_proc('sp_createUser', (username, hashed_password, 0, 0, 0, 0))
+    defaults = settings['newUserPerms']
+
+    # Add a new user to the database with default perms and no admin
+    data = db.call_proc('sp_createUser', (username, hashed_password, defaults[0], defaults[1], defaults[2], 0))
 
     if len(data) == 0:
         user = get_user(username)
