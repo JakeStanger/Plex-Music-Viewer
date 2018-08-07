@@ -43,6 +43,36 @@
         {% endfor %}
     </p>
 
+    <h2>Metadata</h2>
+    <table class="table table-striped" id="metadata_table">
+        <tbody>
+        <tr>
+            <td><b>Title</b></td>
+            <td>{{ track.title }}</td>
+        </tr>
+        <tr>
+            <td><b>Sort Title</b></td>
+            <td>{{ track.titleSort }}</td>
+        </tr>
+        <tr>
+            <td><b>Artist</b></td>
+            <td>{{ track.grandparentTitle }}</td>
+        </tr>
+        <tr>
+            <td><b>Album</b></td>
+            <td>{{ track.parentTitle }}</td>
+        </tr>
+        <tr>
+            <td><b>Track Number</b></td>
+            <td>{{ track.index }}</td>
+        </tr>
+        <tr>
+            <td><b>Disc Number</b></td>
+            <td>{{ track.parentIndex }}</td>
+        </tr>
+        </tbody>
+    </table>
+
     <div class="modal fade" id="editLyrics" tabindex="-1" role="dialog" aria-labelledby="lyricsModalLabel"
          aria-hidden="true">
         <div class="modal-dialog modal-lg" role="document">
@@ -55,16 +85,32 @@
                 </div>
                 <div class="modal-body">
                     <form action="{{ url_for('edit_lyrics', track_id=track.key) }}" method="post">
-                    <div class="form-group">
-                        <!-- Single line formatting must be preserved to format the lyrics inside the texarea correctly. -->
-                        <textarea name="lyrics" class="form-control" style="min-width: 100%;" rows=25 >{% for line in lyrics %}{{ line + '\n' }}{% endfor %}</textarea>
-                    </div>
-                    <hr>
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
-                    <button type="submit" class="btn btn-primary">Save changes</button>
+                        <div class="form-group">
+                            <!-- Single line formatting must be preserved to format the lyrics inside the texarea correctly. -->
+                            <textarea name="lyrics" class="form-control" style="min-width: 100%;"
+                                      rows=25>{% for line in lyrics %}{{ line + '\n' }}{% endfor %}</textarea>
+                        </div>
+                        <hr>
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                        <button type="submit" class="btn btn-primary">Save changes</button>
                     </form>
                 </div>
             </div>
         </div>
     </div>
+{% endblock %}
+
+{% block footer_scripts %}
+    <script src="{{ url_for('static', filename='js/jquery.tabledit.min.js') }}"></script>
+    <script>
+        $('#metadata_table').Tabledit({
+            url: "{{ url_for('update_metadata', track_id=track.key) }}",
+            editButton: false,
+            deleteButton: false,
+            columns: {
+                identifier: [0, 'type'],
+                editable: [[1, 'metadata']]
+            }
+        });
+    </script>
 {% endblock %}
