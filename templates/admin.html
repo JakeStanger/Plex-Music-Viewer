@@ -1,15 +1,16 @@
 {% extends "layout.html" %}
 
 {% block head %}
-{#    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css')}}">#}
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/open-iconic/1.1.1/font/css/open-iconic-bootstrap.min.css" rel="stylesheet">
+    {#    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css')}}">#}
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/open-iconic/1.1.1/font/css/open-iconic-bootstrap.min.css"
+          rel="stylesheet">
 {% endblock %}
 
 {% block body %}
     <h1>Admin</h1>
     <h2>Users</h2>
     <table class="table table-striped" id="user_table">
-    <tbody id ="user_table_body">
+        <tbody id="user_table_body">
         <tr>
             <th>ID</th>
             <th>Username</th>
@@ -26,48 +27,49 @@
                 {% endfor %}
             </tr>
         {% endfor %}
-    </tbody>
-</table>
-<form class="form-inline my-2 my-lg-1 mr-1" action="{{ url_for('update_database') }}" method="post">
-    <button class="btn btn-outline-success my-sm-0" type="submit">Update Database</button>
-</form>
-<form class="form-inline my-2 my-lg-1 mr-1" action="{{ url_for('update_database', deep=1) }}" method="post">
-    <button class="btn btn-outline-success my-sm-0" type="submit">Deep Update Database</button>
-</form>
-<form class="form-inline my-2 my-lg-1 mr-1" action="{{ url_for('update_database', deep=1, drop_old=1) }}" method="post">
-    <button class="btn btn-outline-success my-sm-0" type="submit">Recreate Database</button>
-</form>
+        </tbody>
+    </table>
+    <form class="form-inline my-2 my-lg-1 mr-1" action="{{ url_for('update_database') }}" method="post">
+        <button class="btn btn-outline-success my-sm-0" type="submit">Update Database</button>
+    </form>
+    <form class="form-inline my-2 my-lg-1 mr-1" action="{{ url_for('update_database', deep=1) }}" method="post">
+        <button class="btn btn-outline-success my-sm-0" type="submit">Deep Update Database</button>
+    </form>
+    <form class="form-inline my-2 my-lg-1 mr-1" action="{{ url_for('update_database', deep=1, drop_old=1) }}"
+          method="post">
+        <button class="btn btn-outline-success my-sm-0" type="submit">Recreate Database</button>
+    </form>
 
 {% endblock %}
 
 {% block footer_scripts %}
-<script src="{{ url_for('static', filename='js/bootstrap-confirmation.min.js') }}"></script>
-<script src="{{ url_for('static', filename='js/jquery.tabledit.min.js') }}"></script>
-<script>
-    $('[data-toggle=confirmation]').confirmation({
-        rootSelector: '[data-toggle=confirmation]'
-    });
+    <script src="{{ url_for('static', filename='js/bootstrap-confirmation.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/jquery.tabledit.min.js') }}"></script>
+    <script>
+        $('[data-toggle=confirmation]').confirmation({
+            rootSelector: '[data-toggle=confirmation]'
+        });
 
-    $('#user_table').Tabledit({
-        url: '{{ url_for('edit_user')}}',
-        columns: {
-            identifier: [0, 'id'],
-            editable: [
-                [1, 'username'],
-                [2, 'music_perms'],
-                [3, 'movie_perms'],
-                [4, 'tv_perms'],
-                [5, 'is_admin']
-            ]
-        },
-        buttons: {
-            edit: {
-                html: '<span class="oi oi-pencil"></span>'
+        $('#user_table').Tabledit({
+            url: '{{ url_for('edit_user')}}',
+            columns: {
+                identifier: [0, 'id'],
+                editable: [
+                    [1, 'username'],
+                    [2, 'music_perms'],
+                    [3, 'movie_perms'],
+                    [4, 'tv_perms'],
+                    [5, 'is_admin']
+                ]
             },
-            delete: {
-                html: '<span class="oi oi-trash"></span>'
+            buttons: {
+                edit: {
+                    html: '<span class="oi oi-pencil"></span>'
+                },
+                delete: {
+                    html: '<span class="oi oi-trash"></span>'
+                }
             }
-        }
-    })
-</script>
+        })
+    </script>
 {% endblock %}
