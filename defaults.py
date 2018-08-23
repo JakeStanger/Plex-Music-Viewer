@@ -23,6 +23,36 @@ default_settings = {
     "newUserPerms": [0, 0, 0]
 }
 
+track_table = """
+create table tracks
+(
+  library_key  int auto_increment,
+  name         text      not null,
+  name_sort    text      null,
+  artist_key   int       null,
+  artist_name  text      not null,
+  album_key    int       null,
+  album_name   text      null,
+  duration     int       null,
+  track_num    tinyint   not null,
+  disc_num     tinyint   not null,
+  download_url text      not null,
+  bitrate      mediumint not null,
+  size         bigint    not null,
+  format       tinytext  not null,
+  constraint tracks_library_key_uindex
+  unique (library_key),
+  constraint tracks_albums_library_key_fk
+  foreign key (album_key) references albums (library_key),
+  constraint tracks_artists_library_key_fk
+  foreign key (artist_key) references artists (library_key)
+)
+  engine = InnoDB;
+
+alter table tracks
+  add primary key (library_key);
+"""
+
 
 def set_defaults():
     pass
@@ -30,3 +60,4 @@ def set_defaults():
 
 def set_missing_as_default():
     pass
+
