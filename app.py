@@ -106,7 +106,8 @@ try:
     settings = load(open('settings.json'))
     defaults.set_missing_as_default(settings)
 except FileNotFoundError:
-    defaults.write_settings(defaults.default_settings)
+    settings = defaults.default_settings
+    defaults.write_settings(settings)
 
 if settings['serverToken']:
     plex = PlexServer(settings['serverAddress'], settings['serverToken'])
