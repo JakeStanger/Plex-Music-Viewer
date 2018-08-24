@@ -107,7 +107,6 @@ create table tracks
   constraint tracks_artists_library_key_fk
   foreign key (artist_key) references artists (library_key)
 )
-  engine = InnoDB;
 
 alter table tracks
   add primary key (library_key);
