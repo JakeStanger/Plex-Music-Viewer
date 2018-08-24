@@ -46,7 +46,7 @@ artist_table = """
 create table artists
 (
   library_key int    not null,
-  name        text   null,
+  name        text   not null,
   name_sort   text   not null,
   thumb       bigint null,
   album_count int    not null,
@@ -61,15 +61,15 @@ alter table artists
 album_table = """create table albums
 (
   library_key int         not null,
-  name        text        null,
+  name        text        not null,
   name_sort   text        not null,
-  artist_key  int         null,
+  artist_key  int         not null,
   artist_name text        not null,
   year        smallint(6) not null,
   genres      text        null,
   thumb       bigint      null,
-  track_count smallint(6) null,
-  total_size  bigint      null,
+  track_count smallint(6) not null,
+  total_size  bigint      not null,
   constraint albums_library_key_uindex
   unique (library_key),
   constraint albums_artists_library_key_fk
@@ -88,12 +88,12 @@ create table tracks
 (
   library_key  int auto_increment,
   name         text      not null,
-  name_sort    text      null,
-  artist_key   int       null,
+  name_sort    text      not null,
+  artist_key   int       not null,
   artist_name  text      not null,
-  album_key    int       null,
-  album_name   text      null,
-  duration     int       null,
+  album_key    int       not null,
+  album_name   text      not null,
+  duration     int       not null,
   track_num    tinyint   not null,
   disc_num     tinyint   not null,
   download_url text      not null,
