@@ -27,6 +27,62 @@ default_settings = {
     "newUserPerms": [0, 0, 0]
 }
 
+user_table = """create table users
+(
+  user_id     bigint auto_increment
+    primary key,
+  username    text                   not null,
+  password    text                   not null,
+  music_perms tinyint(6) default '3' not null,
+  movie_perms tinyint(6) default '3' not null,
+  tv_perms    tinyint(6) default '3' not null,
+  is_admin    tinyint(1) default '0' not null,
+  is_deleted  tinyint(1) default '0' not null
+);
+"""
+
+
+artist_table = """
+create table artists
+(
+  library_key int    not null,
+  name        text   null,
+  name_sort   text   not null,
+  thumb       bigint null,
+  album_count int    not null,
+  constraint artists_library_key_uindex
+  unique (library_key)
+);
+
+alter table artists
+  add primary key (library_key);
+"""
+
+album_table = """create table albums
+(
+  library_key int         not null,
+  name        text        null,
+  name_sort   text        not null,
+  artist_key  int         null,
+  artist_name text        not null,
+  year        smallint(6) not null,
+  genres      text        null,
+  thumb       bigint      null,
+  track_count smallint(6) null,
+  total_size  bigint      null,
+  constraint albums_library_key_uindex
+  unique (library_key),
+  constraint albums_artists_library_key_fk
+  foreign key (artist_key) references artists (library_key)
+    on update cascade
+    on delete cascade
+);
+
+alter table albums
+  add primary key (library_key);
+"""
+
+
 track_table = """
 create table tracks
 (
