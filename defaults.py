@@ -106,7 +106,7 @@ create table tracks
   foreign key (album_key) references albums (library_key),
   constraint tracks_artists_library_key_fk
   foreign key (artist_key) references artists (library_key)
-)
+);
 
 alter table tracks
   add primary key (library_key);
