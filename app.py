@@ -402,6 +402,7 @@ def sign_up():
     defaults = settings['newUserPerms']
 
     # Add a new user to the database with default perms and no admin
+    # TODO Replace routine with some actual code.
     data = db.call_proc('sp_createUser', (username, hashed_password, defaults[0], defaults[1], defaults[2], 0))
 
     if len(data) == 0:
