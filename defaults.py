@@ -41,7 +41,24 @@ default_tables = {
           is_admin    tinyint(1) default '0' not null,
           is_deleted  tinyint(1) default '0' not null
         );
-""",
+    """,
+    'api_keys': """
+        create table api_keys
+        (
+          key_id  bigint auto_increment,
+          user_id bigint not null,
+          value   text   not null,
+          constraint api_keys_key_id_uindex
+          unique (key_id),
+          constraint api_keys_users_user_id_fk
+          foreign key (user_id) references users (user_id)
+            on update cascade
+            on delete cascade
+        );
+
+        alter table api_keys
+            add primary key (key_id);
+    """,
     'artists': """
         create table artists
         (
@@ -56,7 +73,7 @@ default_tables = {
         
         alter table artists
           add primary key (library_key);
-""",
+    """,
     'albums': """
         create table albums
         (
@@ -80,7 +97,7 @@ default_tables = {
             
             alter table albums
               add primary key (library_key);
-            """,
+    """,
     'tracks': """
         create table tracks
         (
@@ -108,7 +125,7 @@ default_tables = {
         
         alter table tracks
           add primary key (library_key);
-"""
+    """
 }
 
 
