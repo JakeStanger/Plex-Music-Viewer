@@ -3,6 +3,16 @@ from enum import Enum
 
 
 class Permission(Enum):
+    """
+    Based on the Unix octal permissions system except it goes to 63 instead of 7.
+    A permission level is given to a user based on the sum of the below values.
+
+    For example: `45 = 32 + 8 + 4 + 1`
+
+    So a permission level of 45 would grant permission to delete, upload, edit and view.
+    A user with level 45 would *not* have permission to transcode, edit or view.
+
+    """
     DELETE = 32
     TRANSCODE = 16
     UPLOAD = 8
@@ -18,7 +28,13 @@ class PermissionType(Enum):
 
 
 class PermissionSet:
-    def __init__(self, permission_level):
+    """
+    A representation of the user's permissions.
+
+    Avoids having to calculate based on the number value each time.
+    Instead you can simply check if the user has a specific permission.
+    """
+    def __init__(self, permission_level: int):
         self.permission_level = permission_level
 
         self.permissions = {}
@@ -32,7 +48,7 @@ class PermissionSet:
     def __repr__(self):
         return "<%r>" % self.permission_level
 
-    def has_permission(self, permission):
+    def has_permission(self, permission: Permission) -> bool:
         return self.permissions[permission]
 
 
@@ -56,13 +72,13 @@ class User(UserMixin):
     def __repr__(self):
         return "<%d - %s>" % (self.index, self.id)
 
-    def is_authenticated(self):
+    def is_authenticated(self) -> bool:
         return self.authenticated
 
-    def set_authenticated(self, auth):
+    def set_authenticated(self, auth: bool):
         self.authenticated = auth
 
-    def has_permission(self, permission_type, permission):
+    def has_permission(self, permission_type: PermissionType, permission: Permission):
         return {
             PermissionType.MUSIC: self.music_perms.has_permission(permission),
             PermissionType.MOVIE: self.movie_perms.has_permission(permission),
