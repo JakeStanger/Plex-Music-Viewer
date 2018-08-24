@@ -40,22 +40,26 @@ def get_raw_image(thumb_id: str, width: int=None):
 
     settings = app.get_settings()
 
-    thumb_id = '/' + thumb_id
-    url = settings['serverAddress'] + thumb_id + "?X-Plex-Token=" + settings['serverToken']
-
-    try:
+    using_plex = False  # TODO Properly figure out which backend
+    if using_plex:
+        thumb_id = '/' + thumb_id
+        url = settings['serverAddress'] + thumb_id + "?X-Plex-Token=" + settings['serverToken']
         file = BytesIO(urlopen(url).read())
         image = Image.open(file)
+    else:
+        image = Image.open('/home/jake/Pictures/Moo..jpg')
+        # TODO Other thumb fetching techniques (look for image in directory, last.fm, etc...)
 
-        if width:
-            size = int(width), int(width)
-            image.thumbnail(size, Image.ANTIALIAS)
 
-        save_image_to_disk(thumb_id, image, width)
-        return image
-    except Exception as e:
-        print(e)
-        app.throw_error(400, "invalid thumb-id")
+    if width:
+        size = int(width), int(width)
+        image.thumbnail(size, Image.ANTIALIAS)
+
+    save_image_to_disk(thumb_id, image, width)
+    return image
+    # except Exception as e:
+    #     print(e)
+    #     app.throw_error(400, "invalid thumb-id")
 
 
 def get_image(thumb_id, width=None):
