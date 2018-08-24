@@ -188,18 +188,24 @@ class TrackWrapper:
             with open(filename, 'rb') as f:
                 return f.read().decode('utf8')
 
-        g = genius.Genius(app.settings['genius_api'])
+        if app.settings['genius_api']:
+            g = genius.Genius(app.settings['genius_api'])
 
-        song = g.search_song(self.title, artist_name=self.grandparentTitle)
+            try:
+                song= g.search_song(self.title, artist_name=self.grandparentTitle)
+            except ConnectionError:
+                return 'Failed to reach Genius.'
 
-        if not song:
-            return "Error fetching lyrics."
+            if not song:
+                return "Lyrics not found."
 
-        if not os.path.exists('lyrics'):
-            os.makedirs('lyrics')
+            if not os.path.exists('lyrics'):
+                os.makedirs('lyrics')
 
-        song.save_lyrics(filename, overwrite=True)
-        return song.lyrics.decode('utf8')
+            song.save_lyrics(filename, overwrite=True)
+            return song.lyrics.decode('utf8')
+        else:
+            return 'Genius API key not set.'
 
     def update_lyrics(self, lyrics):
         if not os.path.exists('lyrics'):
