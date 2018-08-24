@@ -1,5 +1,7 @@
 from json import loads, dumps
 
+import helper
+
 default_settings = {
     "librarySection": "Music",
     "serverAddress": "http://localhost:32400",
@@ -16,7 +18,7 @@ default_settings = {
         "database": "",  # TODO Automatically create database and tables if missing
         "hostname": "localhost"
     },
-    "secret_key": "",
+    "secret_key": helper.generate_secret_key(),
     "genius_api": "",
     "colors": {
         "textDark": "#111111",

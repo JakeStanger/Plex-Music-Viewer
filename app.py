@@ -95,12 +95,6 @@ def listen(msg):
 #             pass
 #     return response
 
-
-# Login manager configuration
-login_manager = LoginManager()
-login_manager.init_app(app)
-login_manager.login_view = 'login'
-
 # Load settings
 try:
     settings = load(open('settings.json'))
@@ -109,19 +103,26 @@ except FileNotFoundError:
     settings = defaults.default_settings
     defaults.write_settings(settings)
 
+print(settings)
+
+app.config['MYSQL_DATABASE_USER'] = settings['database']['user']
+app.config['MYSQL_DATABASE_PASSWORD'] = settings['database']['password']
+app.config['MYSQL_DATABASE_DB'] = settings['database']['database']
+app.config['MYSQL_DATABASE_HOST'] = settings['database']['hostname']
+
+app.config.update(SECRET_KEY=settings['secret_key'])
+
 if settings['serverToken']:
     plex = PlexServer(settings['serverAddress'], settings['serverToken'])
     music = plex.library.section(settings['librarySection'])
     settings['musicLibrary'] = music.locations[0]
 
-    app.config['MYSQL_DATABASE_USER'] = settings['database']['user']
-    app.config['MYSQL_DATABASE_PASSWORD'] = settings['database']['password']
-    app.config['MYSQL_DATABASE_DB'] = settings['database']['database']
-    app.config['MYSQL_DATABASE_HOST'] = settings['database']['hostname']
-
-    app.config.update(SECRET_KEY=settings['secret_key'])
-
     plex.startAlertListener(listen)
+
+# Login manager configuration
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'login'
 
 
 def get_app():
