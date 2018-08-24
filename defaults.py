@@ -113,10 +113,6 @@ alter table tracks
 """
 
 
-def set_defaults():
-    pass
-
-
 def set_missing_as_default(settings: dict):
     for setting in default_settings:
         if setting not in settings:
