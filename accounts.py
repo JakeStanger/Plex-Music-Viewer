@@ -37,7 +37,8 @@ class PermissionSet:
 
 
 class User(UserMixin):
-    def __init__(self, index, username, hashed_password, music_perms, movie_perms, tv_perms, is_admin):
+    def __init__(self, index: int, username: str, hashed_password: str,
+                 music_perms: int, movie_perms: int, tv_perms: int, is_admin):
         self.index = index
 
         # Aliases
