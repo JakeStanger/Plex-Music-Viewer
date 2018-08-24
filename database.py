@@ -1,13 +1,15 @@
 """
-Used for generating queries when using own database.
+Used for generating and executing queries when using own database.
 """
 
 from os import path
 from urllib.parse import quote
 
 from flaskext.mysql import MySQL
+from pymysql import ProgrammingError
 
 import app
+import defaults
 import plex_helper as ph
 
 mysql = None
@@ -24,7 +26,7 @@ def get_cache():
     return _cache
 
 
-def insert_into_cache(data: dict):
+def insert_into_cache(data: dict):  # TODO Put this into use
     _cache.append(data)
 
 
@@ -42,7 +44,23 @@ class Value:
         return "<%s: %s>" % (self.column, self.value)
 
 
-def call_proc(proc: str, values):
+# def call_proc(proc: str, values):
+#     global mysql
+#     if not mysql:
+#         init()
+#
+#     conn = mysql.connect()
+#     cursor = conn.cursor()
+#
+#     cursor.callproc('sp_createUser', values)
+#
+#     data = cursor.fetchall()
+#     conn.close()
+#
+#     return data
+
+
+def exec_sql(query: str, table: str, fetch_one: bool = False, fetch_all: bool = False, commit: bool = False):
     global mysql
     if not mysql:
         init()
@@ -50,24 +68,12 @@ def call_proc(proc: str, values):
     conn = mysql.connect()
     cursor = conn.cursor()
 
-    cursor.callproc('sp_createUser', values)
-
-    data = cursor.fetchall()
-    conn.close()
-
-    return data
-
-
-def exec_sql(query: str, fetch_one: bool = False, fetch_all: bool = False, commit: bool = False):
-    print(query)
-    global mysql
-    if not mysql:
-        init()
-
-    conn = mysql.connect()
-    cursor = conn.cursor()
-
-    cursor.execute(query)
+    try:
+        cursor.execute(query)
+    except ProgrammingError:
+        if table in defaults.default_tables:
+            cursor.execute(defaults.default_tables[table])
+            cursor.execute(query)
 
     if commit:
         conn.commit()
@@ -80,50 +86,50 @@ def exec_sql(query: str, fetch_one: bool = False, fetch_all: bool = False, commi
     conn.close()
 
 
-def generate_where(conditions):
+def _generate_where(conditions):
     return " WHERE %s" % ' AND '.join("%s='%s'" % (condition.column, condition.value)
-                                          for condition in conditions) if conditions else ''
+                                      for condition in conditions) if conditions else ''
 
 
-def generate_on_duplicate_key_update(columns):
+def _generate_on_duplicate_key_update(columns):
     return " ON DUPLICATE KEY UPDATE %s" % ','.join("%s='%s'" % (column.column, column.value) for column in columns)
 
 
 def get_one(table: str, columns: list = None, conditions: list = None):
     return exec_sql("SELECT %s FROM %s" % (','.join(col for col in columns) if columns else '*', table)
                     + " WHERE %s" % ' AND '.join("%s='%s'" % (condition.column, condition.value)
-                                                 for condition in conditions) if conditions else '', fetch_one=True)
+                                                 for condition in conditions) if conditions else '', table, fetch_one=True)
 
 
 def get_all(table: str, columns: list = None, conditions: list = None):
     return exec_sql("SELECT %s FROM %s" % (','.join(col for col in columns) if columns else '*', table)
                     + (" WHERE %s" % ' AND '.join("%s='%s'" % (condition.column, condition.value)
-                                                  for condition in conditions) if conditions else ''), fetch_all=True)
+                                                  for condition in conditions) if conditions else ''), table, fetch_all=True)
 
 
 def insert_direct(table: str, values: list, overwrite=False):
     exec_sql("INSERT INTO %s VALUES (%s) %s" % (table,
                                                 ','.join("'%s'" % value.value for value in values),
-                                                generate_on_duplicate_key_update(values) if overwrite else ''),
-             commit=True)
+                                                _generate_on_duplicate_key_update(values) if overwrite else ''),
+             table, commit=True)
 
 
 def insert_specific(table: str, values: list, overwrite=False):
     exec_sql("INSERT %s INTO %s (%s) VALUES (%s)" % (table,
                                                      ','.join(value.column for value in values),
                                                      ','.join('%s' % value.value for value in values),
-                                                     generate_on_duplicate_key_update(values) if overwrite else ''),
-             commit=True)
+                                                     _generate_on_duplicate_key_update(values) if overwrite else ''),
+             table, commit=True)
 
 
 def update(table: str, values: list, conditions: list = None):
     exec_sql("UPDATE %s SET %s" % (table, ','.join("%s='%s'" % (value.column, value.value) for value in values))
-             + generate_where(conditions), commit=True)
+             + _generate_where(conditions), table, commit=True)
 
 
 def delete(table: str, condition: Value = None):
     exec_sql("DELETE FROM %s" % table
-             + (" WHERE %s='%s'" % (condition.column, condition.value) if condition else ''), commit=True)
+             + (" WHERE %s='%s'" % (condition.column, condition.value) if condition else ''), table, commit=True)
 
 
 def get_wrapper_as_values(wrapper, type: ph.Type):
@@ -256,3 +262,16 @@ def get_table_for(media_type: ph.Type):
         ph.Type.TRACK: 'tracks'
 
     }.get(media_type)
+
+
+def create_user(username: str, hashed_password: str,
+                music_perms: int, movie_perms: int, tv_perms: int, is_admin: bool = False):
+    insert_direct('users',
+                  [Value('username', username),
+                   Value('password', hashed_password),
+                   Value('music_perms', music_perms),
+                   Value('movie_perms', movie_perms),
+                   Value('tv_perms', tv_perms),
+                   Value('is_admin', 1 if is_admin else 0)])
+
+    print("Successfully created user %s" % username)
