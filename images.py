@@ -1,6 +1,7 @@
 import os
 import re
 from io import BytesIO
+from typing import Optional
 from urllib.request import urlopen
 
 import numpy as np
@@ -12,25 +13,43 @@ from PIL import Image
 import app
 
 
-def get_friendly_thumb_id(thumb_id):
+def get_friendly_thumb_id(thumb_id: str) -> str:
+    """
+    Gets both numerical values in the thumb id
+    and separates them with a dash.
+
+    Useful for cases such as file names.
+
+    :param thumb_id: The full thumb-id
+    :return: The numerical values separated by a dash.
+    """
     return '-'.join(num for num in re.findall('\\d+', thumb_id))
 
 
-def save_image_to_disk(thumb_id, image, width: int=None):
+def save_image_to_disk(thumb_id: str, image: Image, width: Optional[int]=None):
+    """
+    Writes the given image to disk using
+    its friendly ID as the filename.
+
+    :param thumb_id: The image thumbnail ID
+    :param image: The image object
+    :param width: The desired width of the image
+    :return:
+    """
     if not os.path.exists('images'):
         os.makedirs('images')
 
     image.save("images/%s_%s.png" % (get_friendly_thumb_id(thumb_id), str(width) if width else ''), 'PNG', quality=90)
 
 
-def read_image_from_disk(thumb_id, width: int=None):
+def read_image_from_disk(thumb_id, width: Optional[int]=None):
     try:
         return Image.open("images/%s_%s.png" % (get_friendly_thumb_id(thumb_id), str(width) if width else ''))
     except FileNotFoundError:
         return None
 
 
-def get_raw_image(thumb_id: str, width: int=None):
+def get_raw_image(thumb_id: str, width: int=None) -> Image:
     if thumb_id.startswith('/'):
         thumb_id = thumb_id[1:]
 
@@ -50,7 +69,6 @@ def get_raw_image(thumb_id: str, width: int=None):
         image = Image.open('/home/jake/Pictures/Moo..jpg')
         # TODO Other thumb fetching techniques (look for image in directory, last.fm, etc...)
 
-
     if width:
         size = int(width), int(width)
         image.thumbnail(size, Image.ANTIALIAS)
@@ -62,7 +80,7 @@ def get_raw_image(thumb_id: str, width: int=None):
     #     app.throw_error(400, "invalid thumb-id")
 
 
-def get_image(thumb_id, width=None):
+def get_image(thumb_id: str, width: Optional[int]=None) -> BytesIO:
     image = get_raw_image(thumb_id, width)
     tmp_image = BytesIO()
     image.save(tmp_image, 'PNG', quality=90)
@@ -71,7 +89,13 @@ def get_image(thumb_id, width=None):
     return tmp_image
 
 
-def get_predominant_colour(thumb_id):
+def get_predominant_colour(thumb_id: str) -> str:
+    """
+    Gets the most predominant colour in an image.
+
+    :param thumb_id: The image thumbnail ID
+    :return: A hex code (including starting hash)
+    """
     NUM_CLUSTERS = 5
 
     image = get_raw_image(thumb_id, width=150)
@@ -97,7 +121,13 @@ def get_predominant_colour(thumb_id):
     return colour
 
 
-def get_complimentary_colour(hex_code: str):
+def get_complimentary_colour(hex_code: str) -> str:
+    """
+    Gets the inverse colour to a given hex code.
+
+    :param hex_code: A hex colour with or without the starting hash
+    :return: A hex code of the inverse colour, with the starting hash.
+    """
     if hex_code.startswith('#'):
         hex_code = hex_code[1:]
 
@@ -106,7 +136,17 @@ def get_complimentary_colour(hex_code: str):
     return '#' + ''.join(comp)
 
 
-def get_text_colour(hex_code: str):
+def get_text_colour(hex_code: str) -> str:
+    """
+    Returns the configured dark or light colour
+    depending on the background colour.
+
+    A formula for brightness by the W3C is used to determine
+    whether the given colour is light or dark.
+
+    :param hex_code: The background hex code, with or without the starting hash.
+    :return: A light or dark colour with the starting hash.
+    """
     if hex_code.startswith('#'):
         hex_code = hex_code[1:]
 
