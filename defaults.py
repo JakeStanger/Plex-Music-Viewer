@@ -1,3 +1,5 @@
+from json import loads, dumps
+
 default_settings = {
     "librarySection": "Music",
     "serverAddress": "http://localhost:32400",
@@ -58,6 +60,14 @@ def set_defaults():
     pass
 
 
-def set_missing_as_default():
-    pass
+def set_missing_as_default(settings: dict):
+    for setting in default_settings:
+        if setting not in settings:
+            settings[setting] = default_settings[setting]
 
+    write_settings(settings)
+
+
+def write_settings(settings: dict):
+    with open('settings.json', 'w') as f:
+        f.write(dumps(settings,indent=2))

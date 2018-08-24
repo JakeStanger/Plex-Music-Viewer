@@ -16,6 +16,7 @@ from simplejson import dumps, load
 from werkzeug.security import generate_password_hash, check_password_hash
 
 import database as db
+import defaults
 import images
 import plex_helper as ph
 from accounts import User, Permission, PermissionType
@@ -101,7 +102,11 @@ login_manager.init_app(app)
 login_manager.login_view = 'login'
 
 # Load settings
-settings = load(open('settings.json'))
+try:
+    settings = load(open('settings.json'))
+    defaults.set_missing_as_default(settings)
+except FileNotFoundError:
+    defaults.write_settings(defaults.default_settings)
 
 if settings['serverToken']:
     plex = PlexServer(settings['serverAddress'], settings['serverToken'])
