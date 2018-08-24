@@ -15,7 +15,7 @@ default_settings = {
     "database": {
         "user": "",
         "password": "",
-        "database": "",  # TODO Automatically create database and tables if missing
+        "database": "",
         "hostname": "localhost"
     },
     "secret_key": helper.generate_secret_key(),
