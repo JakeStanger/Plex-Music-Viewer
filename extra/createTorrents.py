@@ -1,6 +1,6 @@
 import libtorrent as lt
 from plexapi.server import PlexServer
-from plex_api_extras import getDownloadLocationPOST
+from plex_api_extras import get_download_location_post
 from json import load
 from os import path, makedirs
 import sys
@@ -34,7 +34,7 @@ for album in albums:
     # Create torrent
     fs = lt.file_storage()
 
-    paths = [getDownloadLocationPOST(track.key, settings) for track in album.tracks()]
+    paths = [get_download_location_post(track.key, settings) for track in album.tracks()]
     albumPath = commonprefix(paths)
     lt.add_files(fs, albumPath)
 

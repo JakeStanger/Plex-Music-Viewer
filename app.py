@@ -21,7 +21,7 @@ import images
 import plex_helper as ph
 from accounts import User, Permission, PermissionType
 from helper import *
-from plex_api_extras import getDownloadLocationPOST, get_additional_track_data
+from plex_api_extras import get_download_location_post, get_additional_track_data
 
 # Flask configuration
 app = Flask(__name__)
@@ -538,7 +538,7 @@ def zip(artist_name, album_name):
     if not path.isfile(filename):
         z = ZipFile(filename, 'w')
         for track in album.tracks():
-            z.write(getDownloadLocationPOST(track.key, settings))
+            z.write(get_download_location_post(track.key, settings))
         z.close()
 
     return send_file(filename, as_attachment=True, attachment_filename=album_name + '.zip')
