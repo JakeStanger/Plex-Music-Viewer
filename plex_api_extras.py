@@ -67,22 +67,6 @@ def get_additional_track_data(track_key, settings):
             'downloadURL': _get_download_location(metadata, settings['musicLibrary'])}
 
 
-def get_download_location_post(track_key, settings):
-    """
-    Used to avoid fetching all extra metadata
-    when just the download location is wanted.
-    Named such as it usually used in POST requests.
-    :param track_key: The track library key
-    :param settings: The global settings dictionary
-    :return:The relative track download path.
-    """
-    url = settings['serverAddress'] + track_key + REQUEST_DATA + settings['serverToken']
-    r = requests.get(url)
-
-    system_path = loads(dumps(xmltodict.parse(r.text)))['MediaContainer']['Track']['Media']['Part']['@file']
-    return system_path.replace(settings['musicLibrary'], "music")
-
-
 def get_torrent_location(album_key, settings):
     """
     :param album_key: The library album key

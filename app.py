@@ -21,7 +21,7 @@ import images
 import plex_helper as ph
 from accounts import User, Permission, PermissionType
 from helper import *
-from plex_api_extras import get_download_location_post, get_additional_track_data
+from plex_api_extras import get_additional_track_data
 
 # Flask configuration
 app = Flask(__name__)
@@ -276,7 +276,7 @@ def album(album_id: int):
     tracks = [ph.TrackWrapper(row=row) for row in db.get_tracks_for(album.key)]
     tracks = sorted(tracks, key=lambda x: (x.parentIndex, x.index))
 
-    return render_template('table.html', tracks=tracks, title=album.title, parentKey=album.parentKey,
+    return render_template('table.html', tracks=tracks, title=album.title, key=album.key, parentKey=album.parentKey,
                            parentTitle=album.parentTitle, settings=settings, totalSize=album.size_formatted())
 
 
@@ -525,23 +525,24 @@ def torrent(artist_name, album_name):
     return send_file(torrent_path, as_attachment=True, attachment_filename=album_name + '.torrent')
 
 
-@app.route('/zip/<artist_name>/<album_name>', methods=['POST'])
+@app.route('/zip/<int:album_id>', methods=['POST'])
 @login_required
 @require_permission(PermissionType.MUSIC, Permission.DOWNLOAD)
-def zip(artist_name, album_name):
-    album = ph.get_album(artist_name, album_name)
+def zip(album_id):
+    # album = ph.get_album(artist_name, album_name)
+    album = ph.AlbumWrapper(row=db.get_album_by_key(album_id))
 
-    filename = "zips/%s/%s.zip" % (artist_name, album_name)
+    filename = "zips/%s/%s.zip" % (album.parentTitle, album.title)
     if not path.exists(path.dirname(filename)):
         makedirs(path.dirname(filename))
 
     if not path.isfile(filename):
         z = ZipFile(filename, 'w')
         for track in album.tracks():
-            z.write(get_download_location_post(track.key, settings))
+            z.write(unquote(track.downloadURL))
         z.close()
 
-    return send_file(filename, as_attachment=True, attachment_filename=album_name + '.zip')
+    return send_file(filename, as_attachment=True, attachment_filename=album.title + '.zip')
 
 
 @app.route('/image/<path:thumb_id>')
