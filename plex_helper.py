@@ -91,7 +91,7 @@ class AlbumWrapper:
         return db.get_track_for(self.key, track_name)
 
     def tracks(self):
-        if self._album:
+        if hasattr(self, '_album'):
             return [TrackWrapper(track) for track in self._album.tracks()]
 
         return [TrackWrapper(row=row) for row in db.get_tracks_for(self.key)]
