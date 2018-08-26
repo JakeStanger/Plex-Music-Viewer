@@ -1,3 +1,4 @@
+musicbrainzngs
 requests
 python-magic
 werkzeug
