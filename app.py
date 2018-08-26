@@ -103,8 +103,6 @@ except FileNotFoundError:
     settings = defaults.default_settings
     defaults.write_settings(settings)
 
-print(settings)
-
 app.config['MYSQL_DATABASE_USER'] = settings['database']['user']
 app.config['MYSQL_DATABASE_PASSWORD'] = settings['database']['password']
 app.config['MYSQL_DATABASE_DB'] = settings['database']['database']
