@@ -9,6 +9,7 @@ from zipfile import ZipFile
 from flask import Flask, render_template, send_file, redirect, url_for, flash
 from flask_login import LoginManager, login_required, login_user, logout_user
 from magic import Magic
+from musicbrainzngs import musicbrainz
 from plexapi.exceptions import NotFound
 from plexapi.library import Library, LibrarySection
 from plexapi.server import PlexServer
@@ -122,6 +123,9 @@ login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
 
+musicbrainz.set_useragent('Plex Music Viewer', '0.1',
+                          'https://github.com/JakeStanger/Plex-Music-Viewer')  # TODO Proper version management
+
 
 def get_app():
     global app
@@ -215,7 +219,7 @@ def admin_required(func, get_user=import_user):
     return admin_wrapper
 
 
-def get_users(with_password: bool=False):
+def get_users(with_password: bool = False):
     return db.get_all('users',
                       not with_password and ['user_id', 'username', 'music_perms', 'movie_perms', 'tv_perms',
                                              'is_admin'], [db.Value('is_deleted', 0)])

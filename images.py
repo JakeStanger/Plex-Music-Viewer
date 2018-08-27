@@ -4,6 +4,7 @@ from io import BytesIO
 from typing import Optional
 from urllib.request import urlopen
 
+import musicbrainzngs as mb
 import numpy as np
 import scipy
 import scipy.cluster
@@ -11,6 +12,8 @@ import scipy.misc
 from PIL import Image
 
 import app
+import database
+from plex_helper import AlbumWrapper
 
 
 def get_friendly_thumb_id(thumb_id: str) -> str:
@@ -66,7 +69,18 @@ def get_raw_image(thumb_id: str, width: int=None) -> Image:
         file = BytesIO(urlopen(url).read())
         image = Image.open(file)
     else:
-        image = Image.open('/home/jake/Pictures/Moo..jpg')
+        friendly_id = get_friendly_thumb_id(thumb_id)
+        album_id = int(friendly_id.split('-')[0])
+
+        album = AlbumWrapper(row=database.get_album_by_key(album_id))
+
+        release = mb.search_releases(artist=album.parentTitle, release=album.title, limit=1)['release-list'][0]
+
+        filename = 'images/%s_%s.jpg' % (friendly_id, str(width) if width else '')
+        with open(filename, 'wb') as f:
+            f.write(mb.get_image_front(release['id'], size=250))
+
+        image = Image.open(filename)
         # TODO Other thumb fetching techniques (look for image in directory, last.fm, etc...)
 
     if width:
