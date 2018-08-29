@@ -1,3 +1,4 @@
+pylast
 musicbrainzngs
 requests
 python-magic
