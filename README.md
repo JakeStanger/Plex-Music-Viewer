@@ -34,6 +34,7 @@ dictionaries.
 - `flask-login` is used to help manage user accounts.
 - `lyricsgenius` is used for fetching track lyrics from
 Genius.
+- `pylast` is used for fetching album art from Last.fm
 
 ## Settings
 ###### TODO Create table describing settings
@@ -57,3 +58,18 @@ here before trying to download lyrics.
 This also means if you do not wish to use Genius, you
 may place lyrics in this folder and the application will
 display them as normal.
+
+## Fetching album art
+In the settings file is a list of album art fetchers
+in the order they will be tried.
+
+By default, Plex is first in the list. If using Plex as 
+the backend, all album art will automatically be fetched 
+from the server.
+
+### last.fm
+Fetching album art from last.fm requires an API key. This
+will require a last.fm account. You can obtain a key at
+the link below.
+
+https://www.last.fm/api/account/create
