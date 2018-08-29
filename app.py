@@ -25,7 +25,7 @@ from helper import *
 from plex_api_extras import get_additional_track_data
 
 # Flask configuration
-app = Flask(__name__)
+app = Flask(__name__)  # TODO Implement logging throughout application
 
 app.url_map.strict_slashes = False
 
