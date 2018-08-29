@@ -6,6 +6,7 @@ from urllib.request import urlopen
 
 import musicbrainzngs as mb
 import numpy as np
+import pylast as pl
 import scipy
 import scipy.cluster
 import scipy.misc
@@ -14,6 +15,57 @@ from PIL import Image
 import app
 import database
 from plex_helper import AlbumWrapper
+
+
+def _get_url_as_bytesio(url: str) -> BytesIO:#
+    return BytesIO(urlopen(url).read())
+
+
+def _fetch_from_plex(thumb_id: str):
+    """
+    Queries the Plex server using the ID
+    and fetches the set thumbnail for the item.
+    :param thumb_id:
+    :return:
+    """
+    settings = app.get_settings()
+    thumb_id = '/' + thumb_id
+    url = settings['serverAddress'] + thumb_id + "?X-Plex-Token=" + settings['serverToken']
+
+    return _get_url_as_bytesio(url)
+
+
+def _fetch_from_musicbrainz(album: AlbumWrapper, friendly_id: str, width: int):
+    release = mb.search_releases(artist=album.parentTitle, release=album.title, limit=1)['release-list'][0]
+
+    filename = 'images/%s_%s.jpg' % (friendly_id, str(width) if width else '')
+
+    try:
+        with open(filename, 'wb') as f:
+            f.write(mb.get_image_front(release['id'], size=250))
+    except mb.ResponseError:  # Image not found
+        return None
+
+    return filename
+
+
+def _fetch_from_lastfm():
+    network = pl.LastFMNetwork(api_key=app.settings['lastfm_key'])
+
+    album_search = pl.AlbumSearch(song['album'], network)
+
+    if album_search.get_total_result_count() == 0:
+        return None
+
+    # Get first result
+    album = album_search.get_next_page()[0]
+
+    url = album.get_cover_image()
+    return _get_url_as_bytesio(url)
+
+
+def _fetch_from_local():
+    return None  # TODO write function
 
 
 def get_friendly_thumb_id(thumb_id: str) -> str:
@@ -60,28 +112,22 @@ def get_raw_image(thumb_id: str, width: int=None) -> Image:
     if cached:
         return cached
 
-    settings = app.get_settings()
+    friendly_id = get_friendly_thumb_id(thumb_id)
+    album_id = int(friendly_id.split('-')[0])
 
-    using_plex = False  # TODO Properly figure out which backend
-    if using_plex:
-        thumb_id = '/' + thumb_id
-        url = settings['serverAddress'] + thumb_id + "?X-Plex-Token=" + settings['serverToken']
-        file = BytesIO(urlopen(url).read())
-        image = Image.open(file)
-    else:
-        friendly_id = get_friendly_thumb_id(thumb_id)
-        album_id = int(friendly_id.split('-')[0])
+    album = AlbumWrapper(row=database.get_album_by_key(album_id))
 
-        album = AlbumWrapper(row=database.get_album_by_key(album_id))
+    search_methods = app.settings['album_art_fetchers']
+    i = 0
+    file = None
 
-        release = mb.search_releases(artist=album.parentTitle, release=album.title, limit=1)['release-list'][0]
+    # Call local functions for each fetching method until a result is found
+    while not file:
+        file = globals()['_fetch_image_from_%s' % search_methods[i]]()
+        i += 1
 
-        filename = 'images/%s_%s.jpg' % (friendly_id, str(width) if width else '')
-        with open(filename, 'wb') as f:
-            f.write(mb.get_image_front(release['id'], size=250))
-
-        image = Image.open(filename)
-        # TODO Other thumb fetching techniques (look for image in directory, last.fm, etc...)
+    image = Image.open(file)
+    # TODO Other thumb fetching techniques (look for image in directory, last.fm, etc...)
 
     if width:
         size = int(width), int(width)
@@ -115,7 +161,11 @@ def get_predominant_colour(thumb_id: str) -> str:
     image = get_raw_image(thumb_id, width=150)
     ar = np.asarray(image)
     shape = ar.shape
-    ar = ar.reshape(scipy.product(shape[:2]), shape[2]).astype(float)
+
+    if len(shape) > 2:
+        ar = ar.reshape(scipy.product(shape[:2]), shape[2]).astype(float)
+    else:  # TODO Actually figure out what's going wrong here
+        ar = ar.reshape(scipy.product(shape[:1]), shape[1]).astype(float)
 
     codes, dist = scipy.cluster.vq.kmeans(ar, NUM_CLUSTERS)
 

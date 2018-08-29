@@ -24,7 +24,9 @@ default_settings = {
         "textDark": "#111111",
         "textLight": "#ffffff"
     },
-    "newUserPerms": [0, 0, 0]
+    "newUserPerms": [0, 0, 0],
+    "lastfm_key": "",
+    "album_art_fetchers": ['plex', 'musicbrainz', 'lastfm', 'local']
 }
 
 default_tables = {
