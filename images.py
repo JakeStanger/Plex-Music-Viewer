@@ -17,57 +17,6 @@ import database
 from plex_helper import AlbumWrapper
 
 
-def _get_url_as_bytesio(url: str) -> BytesIO:#
-    return BytesIO(urlopen(url).read())
-
-
-def _fetch_from_plex(thumb_id: str):
-    """
-    Queries the Plex server using the ID
-    and fetches the set thumbnail for the item.
-    :param thumb_id:
-    :return:
-    """
-    settings = app.get_settings()
-    thumb_id = '/' + thumb_id
-    url = settings['serverAddress'] + thumb_id + "?X-Plex-Token=" + settings['serverToken']
-
-    return _get_url_as_bytesio(url)
-
-
-def _fetch_from_musicbrainz(album: AlbumWrapper, friendly_id: str, width: int):
-    release = mb.search_releases(artist=album.parentTitle, release=album.title, limit=1)['release-list'][0]
-
-    filename = 'images/%s_%s.jpg' % (friendly_id, str(width) if width else '')
-
-    try:
-        with open(filename, 'wb') as f:
-            f.write(mb.get_image_front(release['id'], size=250))
-    except mb.ResponseError:  # Image not found
-        return None
-
-    return filename
-
-
-def _fetch_from_lastfm():
-    network = pl.LastFMNetwork(api_key=app.settings['lastfm_key'])
-
-    album_search = pl.AlbumSearch(song['album'], network)
-
-    if album_search.get_total_result_count() == 0:
-        return None
-
-    # Get first result
-    album = album_search.get_next_page()[0]
-
-    url = album.get_cover_image()
-    return _get_url_as_bytesio(url)
-
-
-def _fetch_from_local():
-    return None  # TODO write function
-
-
 def get_friendly_thumb_id(thumb_id: str) -> str:
     """
     Gets both numerical values in the thumb id
@@ -79,6 +28,65 @@ def get_friendly_thumb_id(thumb_id: str) -> str:
     :return: The numerical values separated by a dash.
     """
     return '-'.join(num for num in re.findall('\\d+', thumb_id))
+
+
+def _get_url_as_bytesio(url: str) -> BytesIO:
+    return BytesIO(urlopen(url).read())
+
+
+def _fetch_from_plex(album: AlbumWrapper) -> Optional[BytesIO]:
+    """
+    Queries the Plex server using the ID
+    and fetches the set thumbnail for the item.
+    :param album
+    :return:
+    """
+
+    # TODO return none if not using plex
+
+    settings = app.settings
+    if settings['serverToken']:
+        thumb_id = '/' + album.thumb
+        url = settings['serverAddress'] + thumb_id + "?X-Plex-Token=" + settings['serverToken']
+
+        return _get_url_as_bytesio(url)
+
+    return None
+
+
+def _fetch_from_musicbrainz(album: AlbumWrapper) -> Optional[str]:
+    release = mb.search_releases(artist=album.parentTitle, release=album.title, limit=1)['release-list'][0]
+
+    size = 250
+
+    filename = 'images/%s_250.jpg' % get_friendly_thumb_id(album.thumb)
+
+    try:
+        with open(filename, 'wb') as f:
+            f.write(mb.get_image_front(release['id'], size=size))
+    except mb.ResponseError:  # Image not found
+        return None
+
+    return filename
+
+
+def _fetch_from_lastfm(album: AlbumWrapper):
+    network = pl.LastFMNetwork(api_key=app.settings['lastfm_key'])
+
+    album_search = pl.AlbumSearch(album.title, network)
+
+    if album_search.get_total_result_count() == 0:
+        return None
+
+    # Get first result
+    album = album_search.get_next_page()[0]
+
+    url = album.get_cover_image()
+    return _get_url_as_bytesio(url)
+
+
+def _fetch_from_local(album: AlbumWrapper):
+    return None  # TODO write function
 
 
 def save_image_to_disk(thumb_id: str, image: Image, width: Optional[int]=None):
@@ -123,7 +131,7 @@ def get_raw_image(thumb_id: str, width: int=None) -> Image:
 
     # Call local functions for each fetching method until a result is found
     while not file:
-        file = globals()['_fetch_image_from_%s' % search_methods[i]]()
+        file = globals()['_fetch_from_%s' % search_methods[i]](album)
         i += 1
 
     image = Image.open(file)
@@ -156,7 +164,7 @@ def get_predominant_colour(thumb_id: str) -> str:
     :param thumb_id: The image thumbnail ID
     :return: A hex code (including starting hash)
     """
-    NUM_CLUSTERS = 5
+    num_clusters = 5
 
     image = get_raw_image(thumb_id, width=150)
     ar = np.asarray(image)
@@ -167,7 +175,7 @@ def get_predominant_colour(thumb_id: str) -> str:
     else:  # TODO Actually figure out what's going wrong here
         ar = ar.reshape(scipy.product(shape[:1]), shape[1]).astype(float)
 
-    codes, dist = scipy.cluster.vq.kmeans(ar, NUM_CLUSTERS)
+    codes, dist = scipy.cluster.vq.kmeans(ar, num_clusters)
 
     vecs, dist = scipy.cluster.vq.vq(ar, codes)  # assign codes
     counts, bins = scipy.histogram(vecs, len(codes))  # count occurrences
