@@ -45,13 +45,13 @@ def _fetch_from_plex(album: AlbumWrapper) -> Optional[BytesIO]:
     # TODO return none if not using plex
 
     settings = app.settings
-    if settings['serverToken']:
-        thumb_id = '/' + album.thumb
-        url = settings['serverAddress'] + thumb_id + "?X-Plex-Token=" + settings['serverToken']
+    if not settings['serverToken']:
+        return None
 
-        return _get_url_as_bytesio(url)
+    thumb_id = '/' + album.thumb
+    url = settings['serverAddress'] + thumb_id + "?X-Plex-Token=" + settings['serverToken']
 
-    return None
+    return _get_url_as_bytesio(url)
 
 
 def _fetch_from_musicbrainz(album: AlbumWrapper) -> Optional[str]:
@@ -71,6 +71,10 @@ def _fetch_from_musicbrainz(album: AlbumWrapper) -> Optional[str]:
 
 
 def _fetch_from_lastfm(album: AlbumWrapper):
+    settings = app.settings
+    if not settings['lastfm_key']:
+        return None
+
     network = pl.LastFMNetwork(api_key=app.settings['lastfm_key'])
 
     album_search = pl.AlbumSearch(album.title, network)
