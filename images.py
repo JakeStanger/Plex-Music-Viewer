@@ -38,8 +38,10 @@ def _fetch_from_plex(album: AlbumWrapper) -> Optional[BytesIO]:
     """
     Queries the Plex server using the ID
     and fetches the set thumbnail for the item.
-    :param album
-    :return:
+
+    :param album The album to find the cover for.
+    :return: A BytesIO object of the image
+    if one is found.
     """
 
     # TODO return none if not using plex
@@ -55,6 +57,14 @@ def _fetch_from_plex(album: AlbumWrapper) -> Optional[BytesIO]:
 
 
 def _fetch_from_musicbrainz(album: AlbumWrapper) -> Optional[str]:
+    """
+    Looks up the album and artist on musicbrainz and
+    fetches the front cover album art for it.
+
+    :param album: The album to find the cover for.
+    :return: The filename of the downloaded image
+    if one was found.
+    """
     release = mb.search_releases(artist=album.parentTitle, release=album.title, limit=1)['release-list'][0]
 
     size = 250
@@ -70,7 +80,18 @@ def _fetch_from_musicbrainz(album: AlbumWrapper) -> Optional[str]:
     return filename
 
 
-def _fetch_from_lastfm(album: AlbumWrapper):
+def _fetch_from_lastfm(album: AlbumWrapper) -> Optional[BytesIO]:
+    """
+    Looks up the album on last.fm and fetches
+    album art for it.
+
+    Returns none if nothing is found or the
+    last.fm key is not set.
+
+    :param album: The album to find the cover for.
+    :return: A BytesIO object of the image if
+    one is found.
+    """
     settings = app.settings
     if not settings['lastfm_key']:
         return None
@@ -89,8 +110,35 @@ def _fetch_from_lastfm(album: AlbumWrapper):
     return _get_url_as_bytesio(url)
 
 
-def _fetch_from_local(album: AlbumWrapper):
-    return None  # TODO write function
+def _fetch_from_local(album: AlbumWrapper) -> Optional[str]:
+    """
+    Looks for images in the album directory.
+    Checks each track in case they are in separated directories.
+    Will return the first image it finds.
+
+    :param album: The album to find the cover for.
+    :return: The filename of the first image file
+    found in a directory containing tracks from the
+    given album, assuming one is found.
+    """
+    valid_images = [".jpg", ".gif", ".png", ".tga"]
+
+    visited_paths = []
+    for track in album.tracks():
+        folder = os.path.dirname(track.downloadURL)
+
+        if folder in visited_paths:
+            continue
+
+        visited_paths.append(folder)
+        for f in os.listdir(folder):
+            ext = os.path.splitext(f)[1]
+            if ext.lower() not in valid_images:
+                continue
+
+            return os.path.join(folder, f)
+
+    return None
 
 
 def save_image_to_disk(thumb_id: str, image: Image, width: Optional[int]=None):
