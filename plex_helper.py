@@ -91,7 +91,7 @@ class AlbumWrapper:
         return db.get_track_for(self.key, track_name)
 
     def tracks(self):
-        if self._album:
+        if hasattr(self, '_album'):
             return [TrackWrapper(track) for track in self._album.tracks()]
 
         return [TrackWrapper(row=row) for row in db.get_tracks_for(self.key)]
@@ -185,21 +185,28 @@ class TrackWrapper:
         filename = self.get_lyrics_filename()
 
         if os.path.exists(filename):
-            with open(filename, 'r') as f:
-                return f.read()
+            with open(filename, 'rb') as f:
+                return f.read().decode('utf8')
 
-        g = genius.Genius(app.settings['genius_api'])
+        if app.settings['genius_api']:
+            g = genius.Genius(app.settings['genius_api'])
 
-        song = g.search_song(self.title, artist_name=self.grandparentTitle)
+            try:
+                song = g.search_song(self.title, artist_name=self.grandparentTitle)
+            except ConnectionError:
+                return 'Failed to reach Genius.'
 
-        if not song:
-            return "Error fetching lyrics."
+            if not song:
+                return "Lyrics not found."
 
-        if not os.path.exists('lyrics'):
-            os.makedirs('lyrics')
+            if not os.path.exists('lyrics'):
+                os.makedirs('lyrics')
 
-        song.save_lyrics(filename, overwrite=True)
-        return song.lyrics
+            song.save_lyrics(filename, overwrite=True, binary_encoding=True)
+            # return song.lyrics.decode('utf8')
+            return song.lyrics
+        else:
+            return 'Genius API key not set.'
 
     def update_lyrics(self, lyrics):
         if not os.path.exists('lyrics'):
@@ -209,6 +216,8 @@ class TrackWrapper:
         with open(filename, 'w') as f:
             f.write(lyrics)
 
+    def update_metadata(self, category, value):
+        pass
 
 
 def get_artists() -> list:

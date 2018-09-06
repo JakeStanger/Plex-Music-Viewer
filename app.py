@@ -3,10 +3,13 @@ import time
 from functools import wraps
 from multiprocessing import Process, Manager
 from os import path, symlink, makedirs
+from urllib.parse import unquote
 from zipfile import ZipFile
 
 from flask import Flask, render_template, send_file, redirect, url_for, flash
 from flask_login import LoginManager, login_required, login_user, logout_user
+from magic import Magic
+from musicbrainzngs import musicbrainz
 from plexapi.exceptions import NotFound
 from plexapi.library import Library, LibrarySection
 from plexapi.server import PlexServer
@@ -14,14 +17,15 @@ from simplejson import dumps, load
 from werkzeug.security import generate_password_hash, check_password_hash
 
 import database as db
+import defaults
 import images
 import plex_helper as ph
 from accounts import User, Permission, PermissionType
 from helper import *
-from plex_api_extras import getDownloadLocationPOST, get_additional_track_data
+from plex_api_extras import get_additional_track_data
 
 # Flask configuration
-app = Flask(__name__)
+app = Flask(__name__)  # TODO Implement logging throughout application
 
 app.url_map.strict_slashes = False
 
@@ -92,28 +96,35 @@ def listen(msg):
 #             pass
 #     return response
 
-
-# Login manager configuration
-login_manager = LoginManager()
-login_manager.init_app(app)
-login_manager.login_view = 'login'
-
 # Load settings
-settings = load(open('settings.json'))
+try:
+    settings = load(open('settings.json'))
+    defaults.set_missing_as_default(settings)
+except FileNotFoundError:
+    settings = defaults.default_settings
+    defaults.write_settings(settings)
+
+app.config['MYSQL_DATABASE_USER'] = settings['database']['user']
+app.config['MYSQL_DATABASE_PASSWORD'] = settings['database']['password']
+app.config['MYSQL_DATABASE_DB'] = settings['database']['database']
+app.config['MYSQL_DATABASE_HOST'] = settings['database']['hostname']
+
+app.config.update(SECRET_KEY=settings['secret_key'])
 
 if settings['serverToken']:
     plex = PlexServer(settings['serverAddress'], settings['serverToken'])
     music = plex.library.section(settings['librarySection'])
     settings['musicLibrary'] = music.locations[0]
 
-    app.config['MYSQL_DATABASE_USER'] = settings['database']['user']
-    app.config['MYSQL_DATABASE_PASSWORD'] = settings['database']['password']
-    app.config['MYSQL_DATABASE_DB'] = settings['database']['database']
-    app.config['MYSQL_DATABASE_HOST'] = settings['database']['hostname']
-
-    app.config.update(SECRET_KEY=settings['secret_key'])
-
     plex.startAlertListener(listen)
+
+# Login manager configuration
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'login'
+
+musicbrainz.set_useragent('Plex Music Viewer', '0.1',
+                          'https://github.com/JakeStanger/Plex-Music-Viewer')  # TODO Proper version management
 
 
 def get_app():
@@ -208,7 +219,7 @@ def admin_required(func, get_user=import_user):
     return admin_wrapper
 
 
-def get_users(with_password: bool=False):
+def get_users(with_password: bool = False):
     return db.get_all('users',
                       not with_password and ['user_id', 'username', 'music_perms', 'movie_perms', 'tv_perms',
                                              'is_admin'], [db.Value('is_deleted', 0)])
@@ -267,24 +278,8 @@ def album(album_id: int):
     tracks = [ph.TrackWrapper(row=row) for row in db.get_tracks_for(album.key)]
     tracks = sorted(tracks, key=lambda x: (x.parentIndex, x.index))
 
-    return render_template('table.html', tracks=tracks, title=album.title, parentKey=album.parentKey,
+    return render_template('table.html', tracks=tracks, title=album.title, key=album.key, parentKey=album.parentKey,
                            parentTitle=album.parentTitle, settings=settings, totalSize=album.size_formatted())
-
-
-# @app.route("/track/<int:track_id>")
-# @app.route("/track/<int:track_id>/<download>")
-# @login_required
-# @require_permission(PermissionType.MUSIC, Permission.VIEW)
-# def track(track_id: int, download=False):
-#     track = ph.TrackWrapper(row=db.get_track_by_key(track_id))
-#
-#     decoded = unquote(track.downloadURL)
-#
-#     mime = Magic(mime=True)
-#     mimetype = mime.from_file(decoded)
-#
-#     return send_file(decoded, mimetype=mimetype,
-#                      as_attachment=download, attachment_filename='%s.%s' % (track.title, track.format))
 
 
 @app.route("/track/<int:track_id>")
@@ -295,8 +290,26 @@ def track(track_id: int):
     banner_colour = images.get_predominant_colour(thumb_id)
     text_colour = images.get_text_colour(banner_colour)
 
+    lyrics = track.lyrics()
+
     return render_template('track.html', track=track, thumb_id=thumb_id,
-                           banner_colour=banner_colour, text_colour=text_colour, lyrics=track.lyrics().split("\n"))
+                           banner_colour=banner_colour, text_colour=text_colour, lyrics=lyrics.split("\n"))
+
+
+@app.route("/track_file/<int:track_id>")
+@app.route("/track_file/<int:track_id>/<download>")
+@login_required
+@require_permission(PermissionType.MUSIC, Permission.VIEW)
+def track_file(track_id: int, download=False):
+    track = ph.TrackWrapper(row=db.get_track_by_key(track_id))
+
+    decoded = unquote(track.downloadURL)
+
+    mime = Magic(mime=True)
+    mimetype = mime.from_file(decoded)
+
+    return send_file(decoded, mimetype=mimetype,
+                     as_attachment=download, attachment_filename='%s.%s' % (track.title, track.format))
 
 
 @app.route('/edit_lyrics/<int:track_id>', methods=['POST'])
@@ -310,7 +323,15 @@ def edit_lyrics(track_id: int):
 
     flash('Lyrics successfully updated', category='success')
 
-    return track(track_id)
+    return redirect(url_for('track', track_id=track_id))
+
+
+@app.route('/edit_metadata/<int:track_id>', methods=['POST'])
+@login_required
+@require_permission(PermissionType.MUSIC, Permission.EDIT)
+def update_metadata(track_id: int):
+    print(request.form)
+    return str(track_id)  # TODO Write metadata updating (local, database, plex)
 
 
 @app.route("/search", methods=['GET', 'POST'])
@@ -380,16 +401,19 @@ def sign_up():
 
     hashed_password = generate_password_hash(password)
 
-    # Create user with no permissions
-    # TODO Allow default permissions to be set in settings
-    data = db.call_proc('sp_createUser', (username, hashed_password, 0, 0, 0, 0))
+    defaults = settings['newUserPerms']
 
-    if len(data) == 0:
-        user = get_user(username)
-        login_user(user, remember)
-        return redirect(url_for('index'))
-    else:
-        return dumps({'error': str(data[0])})
+    # Add a new user to the database with default perms and no admin
+    # TODO Replace routine with some actual code.
+
+    db.create_user(username, hashed_password, defaults[0], defaults[1], defaults[2])
+
+    # if len(data) == 0:
+    user = get_user(username)
+    login_user(user, remember)
+    return redirect(url_for('index'))
+    # else:
+    #   return dumps({'error': str(data[0])})
 
 
 @app.route('/logout')
@@ -503,23 +527,24 @@ def torrent(artist_name, album_name):
     return send_file(torrent_path, as_attachment=True, attachment_filename=album_name + '.torrent')
 
 
-@app.route('/zip/<artist_name>/<album_name>', methods=['POST'])
+@app.route('/zip/<int:album_id>', methods=['POST'])
 @login_required
 @require_permission(PermissionType.MUSIC, Permission.DOWNLOAD)
-def zip(artist_name, album_name):
-    album = ph.get_album(artist_name, album_name)
+def zip(album_id):
+    # album = ph.get_album(artist_name, album_name)
+    album = ph.AlbumWrapper(row=db.get_album_by_key(album_id))
 
-    filename = "zips/%s/%s.zip" % (artist_name, album_name)
+    filename = "zips/%s/%s.zip" % (album.parentTitle, album.title)
     if not path.exists(path.dirname(filename)):
         makedirs(path.dirname(filename))
 
     if not path.isfile(filename):
         z = ZipFile(filename, 'w')
         for track in album.tracks():
-            z.write(getDownloadLocationPOST(track.key, settings))
+            z.write(unquote(track.downloadURL))
         z.close()
 
-    return send_file(filename, as_attachment=True, attachment_filename=album_name + '.zip')
+    return send_file(filename, as_attachment=True, attachment_filename=album.title + '.zip')
 
 
 @app.route('/image/<path:thumb_id>')

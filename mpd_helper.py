@@ -1,1 +1,2 @@
-# Placeholder
+def search():
+    pass
