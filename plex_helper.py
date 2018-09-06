@@ -192,7 +192,7 @@ class TrackWrapper:
             g = genius.Genius(app.settings['genius_api'])
 
             try:
-                song= g.search_song(self.title, artist_name=self.grandparentTitle)
+                song = g.search_song(self.title, artist_name=self.grandparentTitle)
             except ConnectionError:
                 return 'Failed to reach Genius.'
 
@@ -202,8 +202,9 @@ class TrackWrapper:
             if not os.path.exists('lyrics'):
                 os.makedirs('lyrics')
 
-            song.save_lyrics(filename, overwrite=True)
-            return song.lyrics.decode('utf8')
+            song.save_lyrics(filename, overwrite=True, binary_encoding=True)
+            # return song.lyrics.decode('utf8')
+            return song.lyrics
         else:
             return 'Genius API key not set.'
 
