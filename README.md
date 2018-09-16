@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.com/JakeStanger/Plex-Music-Viewer.svg?branch=master)](https://travis-ci.com/JakeStanger/Plex-Music-Viewer)
+
 # Plex-Music-Viewer
 A web application written in Python with Bootstrap 4 to integrate with your Plex
 music library.
