@@ -3,4 +3,4 @@
     - "3.6"
     - "3.7-dev"
   script:
-- pytest
+    - pytest
