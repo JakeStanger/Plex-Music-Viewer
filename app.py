@@ -1,4 +1,5 @@
 import sched
+import sys
 import time
 from functools import wraps
 from multiprocessing import Process, Manager
@@ -14,6 +15,7 @@ from plexapi.exceptions import NotFound
 from plexapi.library import Library, LibrarySection
 from plexapi.server import PlexServer
 from simplejson import dumps, load
+from werkzeug.local import LocalProxy
 from werkzeug.security import generate_password_hash, check_password_hash
 
 import database as db
@@ -23,6 +25,20 @@ import plex_helper as ph
 from accounts import User, Permission, PermissionType
 from helper import *
 from plex_api_extras import get_additional_track_data
+
+import logging
+from logging import handlers
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+
+handler = handlers.RotatingFileHandler('output.log', backupCount=3)  # TODO Allow log rotation to be configured
+formatter = logging.Formatter('[%(asctime)s] [%(name)s] [%(levelname)s] %(message)s')
+handler.setFormatter(formatter)
+logger.addHandler(handler)
+
+logger.info("--BEGIN APPLICATION--")
+logger.info("Creating Flask object.")
 
 # Flask configuration
 app = Flask(__name__)  # TODO Implement logging throughout application
@@ -98,12 +114,17 @@ def listen(msg):
 
 # Load settings
 try:
+    logger.info("Loading settings from file...")
     settings = load(open('settings.json'))
     defaults.set_missing_as_default(settings)
 except FileNotFoundError:
+    logger.info("No settings file found. Creating a new one with default settings.")
     settings = defaults.default_settings
     defaults.write_settings(settings)
 
+# logger.setLevel(settings['log_level']) TODO Set log level from settings
+
+logger.debug("Setting MySQL database settings.")
 app.config['MYSQL_DATABASE_USER'] = settings['database']['user']
 app.config['MYSQL_DATABASE_PASSWORD'] = settings['database']['password']
 app.config['MYSQL_DATABASE_DB'] = settings['database']['database']
@@ -112,17 +133,21 @@ app.config['MYSQL_DATABASE_HOST'] = settings['database']['hostname']
 app.config.update(SECRET_KEY=settings['secret_key'])
 
 if settings['serverToken']:
+    logger.info("Using Plex backend.")
     plex = PlexServer(settings['serverAddress'], settings['serverToken'])
     music = plex.library.section(settings['librarySection'])
     settings['musicLibrary'] = music.locations[0]
 
+    logger.debug("Starting plex alert listener.")
     plex.startAlertListener(listen)
 
 # Login manager configuration
+logger.debug("Creating login manager.")
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
 
+logger.debug("Setting musicbrainz useragent.")
 musicbrainz.set_useragent('Plex Music Viewer', '0.1',
                           'https://github.com/JakeStanger/Plex-Music-Viewer')  # TODO Proper version management
 
@@ -154,6 +179,7 @@ app.jinja_env.globals.update(key_num=key_num)
 
 @app.errorhandler(404)
 def page_not_found(e, custom_message=None):
+    logger.debug("Throwing error 404 (%s)" % custom_message or e)
     return render_template('error.html', code=str(404), message=custom_message or e)
 
 
@@ -168,7 +194,7 @@ app.jinja_env.globals.update(throw_error=throw_error)
 #     return None
 
 
-def import_user():
+def import_user() -> LocalProxy:
     """
     Imports the current user from Flask and returns it.
     Used outside of requests where current_user is otherwise None.
@@ -179,11 +205,11 @@ def import_user():
         return current_user
     except ImportError:
         raise ImportError(
-            'User argument not passed and Flask-Login current_user could not be imported.')
+            'Flask-Login.current_user could not be imported.')
 
 
 def require_permission(permission_type: PermissionType, permission: Permission,
-                       get_user=import_user):  # TODO Require login here rather than on all functions
+                       get_user: LocalProxy = import_user):  # TODO Require login here rather than on all functions
     """
     Decorating a function with this ensures the current
     user has permission to load to page.
@@ -200,6 +226,8 @@ def require_permission(permission_type: PermissionType, permission: Permission,
             if user.has_permission(permission_type, permission):
                 return func(*args, **kwargs)
             else:
+                logger.info('User %s attempted to send request but did not have permission %s - %s.'
+                             % (user.username, permission_type, permission))
                 throw_error(401, "Missing permission <b>%s</b> in <b>%s</b>." % (permission, permission_type))
 
         return permission_inner
@@ -212,6 +240,7 @@ def admin_required(func, get_user=import_user):
     def admin_wrapper(*args, **kwargs):
         user = get_user()
         if not user.is_admin:
+            logger.info("User %s attempted to send an admin-only request without admin privileges.")
             throw_error(401, "Only administrators can do this.")
 
         return func(*args, **kwargs)

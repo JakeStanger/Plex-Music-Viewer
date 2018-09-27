@@ -14,10 +14,10 @@ def _get_bitrate(metadata: dict) -> Optional[str]:
     """
     try:
         return str(metadata['Stream']['@bitrate'])
-    except KeyError:
+    except:
         try:
             return str(metadata['Stream'][0]['@bitrate'])
-        except KeyError:
+        except:
             return None
 
 
@@ -28,7 +28,7 @@ def _get_codec(metadata: dict) -> str:
     """
     try:
         return str(metadata['Stream']['@codec'])
-    except KeyError:
+    except:
         return str(metadata['Stream'][0]['@codec'])
 
 

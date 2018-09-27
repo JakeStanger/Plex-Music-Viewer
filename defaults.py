@@ -26,7 +26,8 @@ default_settings = {
     },
     "newUserPerms": [0, 0, 0],
     "lastfm_key": "",
-    "album_art_fetchers": ['plex', 'musicbrainz', 'lastfm', 'local']
+    "album_art_fetchers": ['plex', 'musicbrainz', 'lastfm', 'local'],
+    "log_level": "INFO"
 }
 
 default_tables = {
