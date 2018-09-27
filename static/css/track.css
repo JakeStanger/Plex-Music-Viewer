@@ -1,0 +1,22 @@
+.btn-round{
+	border-radius: 50%;
+	font-size: 24px;
+	height: 56px;
+	margin: 10px;
+	min-width: 56px;
+	width: 56px;
+	padding: 0;
+	overflow: hidden;
+}
+
+@media (max-width: 991px) {
+	.display-4 {
+		font-size: 2rem;
+	}
+}
+
+@media (min-width: 992px) and (max-width: 1600px){
+	.display-4 {
+		font-size: 2.7rem;
+	}
+}

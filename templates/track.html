@@ -3,18 +3,26 @@
 {% block head %}
     <link href="https://cdnjs.cloudflare.com/ajax/libs/open-iconic/1.1.1/font/css/open-iconic-bootstrap.min.css"
           rel="stylesheet">
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/track.css') }}">
+    <script defer src="https://code.getmdl.io/1.3.0/material.min.js"></script>
 {% endblock %}
 
 {% block body_before %}
     <div class="jumbotron jumbotron-fluid" style="background-color: {{ banner_colour }}; color: {{ text_colour }}">
-        <div class="container">
+        <div class="container-fluid">
             <div class="row">
-                <div class="col col-md-3">
-                    <img src="{{ url_for('image', thumb_id=thumb_id, width=200) }}">
+                <div class="col-12 col-sm-3">
+                    <img src="{{ url_for('image', thumb_id=thumb_id, width=200) }}" style="margin: auto;">
                 </div>
-                <div class="col col-md-auto">
-                    <h1 class="display-4" style="width: 66%;">{{ track.index }} - {{ track.title }}</h1>
+                <div class="col-12 col-md-9 col-lg-6">
+                    <h1 class="display-4">{{ track.index }} - {{ track.title }}</h1>
                     <p class="lead">{{ track.grandparentTitle }} - {{ track.parentTitle }}</p>
+                </div>
+                <div class="col-12 col-lg-3">
+                    <button class="btn btn-round">
+                        <span class="oi oi-media-play"></span>
+                    </button>
                 </div>
             </div>
         </div>
