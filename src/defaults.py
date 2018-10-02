@@ -1,6 +1,6 @@
 from json import dumps
 
-import helper
+from src import helper
 
 default_settings = {
     "librarySection": "Music",

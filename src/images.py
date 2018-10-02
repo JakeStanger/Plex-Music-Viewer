@@ -12,9 +12,8 @@ import scipy.cluster
 import scipy.misc
 from PIL import Image
 
-import app
-import database
-from plex_helper import AlbumWrapper
+from src import database, app
+from src.plex_helper import AlbumWrapper
 
 
 def get_friendly_thumb_id(thumb_id: str) -> str:

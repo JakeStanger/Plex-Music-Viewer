@@ -8,9 +8,7 @@ from urllib.parse import quote
 from flaskext.mysql import MySQL
 from pymysql import ProgrammingError
 
-import app
-import defaults
-import plex_helper as ph
+from src import app, plex_helper as ph, defaults
 
 mysql = None
 _cache = []

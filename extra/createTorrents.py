@@ -1,6 +1,6 @@
 import libtorrent as lt
 from plexapi.server import PlexServer
-from plex_api_extras import get_download_location_post
+from src.plex_api_extras import get_download_location_post
 from json import load
 from os import path, makedirs
 import sys

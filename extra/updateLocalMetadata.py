@@ -1,6 +1,6 @@
 import taglib
 from plexapi.server import PlexServer
-from plex_api_extras import get_additional_track_data
+from src.plex_api_extras import get_additional_track_data
 import sys
 from json import load
 

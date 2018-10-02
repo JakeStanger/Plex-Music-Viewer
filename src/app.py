@@ -1,5 +1,4 @@
 import sched
-import sys
 import time
 from functools import wraps
 from multiprocessing import Process, Manager
@@ -18,13 +17,10 @@ from simplejson import dumps, load
 from werkzeug.local import LocalProxy
 from werkzeug.security import generate_password_hash, check_password_hash
 
-import database as db
-import defaults
-import images
-import plex_helper as ph
-from accounts import User, Permission, PermissionType
-from helper import *
-from plex_api_extras import get_additional_track_data
+from src import images, database as db, plex_helper as ph, defaults
+from src.accounts import User, Permission, PermissionType
+from src.helper import *
+from src.plex_api_extras import get_additional_track_data
 
 import logging
 from logging import handlers

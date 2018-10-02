@@ -3,4 +3,4 @@ import sys
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
-from app import app as application
+from src import app as application

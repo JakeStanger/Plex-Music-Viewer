@@ -4,9 +4,8 @@ from enum import Enum
 from json import dumps
 from typing import Union
 
-import app
-import database as db
-from plex_api_extras import get_additional_track_data
+from src import database as db, app
+from src.plex_api_extras import get_additional_track_data
 from plexapi.audio import Artist, Album, Track
 from urllib.parse import unquote
 import lyricsgenius as genius

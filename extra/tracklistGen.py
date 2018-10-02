@@ -1,6 +1,6 @@
 from plexapi.server import PlexServer
 from json import load
-from app import get_album
+from src.app import get_album
 import sys
 
 
