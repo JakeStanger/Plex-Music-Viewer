@@ -158,7 +158,7 @@ def save_image_to_disk(thumb_id: str, image: Image, width: Optional[int]=None):
 
 def read_image_from_disk(thumb_id, width: Optional[int]=None):
     try:
-        return Image.open("images/%s_%s.png" % (get_friendly_thumb_id(thumb_id), str(width) if width else ''))
+        return Image.open("/images/%s_%s.png" % (get_friendly_thumb_id(thumb_id), str(width) if width else ''))
     except FileNotFoundError:
         return None
 
