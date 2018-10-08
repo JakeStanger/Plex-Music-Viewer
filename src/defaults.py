@@ -16,7 +16,8 @@ default_settings = {
         "user": "",
         "password": "",
         "database": "",
-        "hostname": "localhost"
+        "hostname": "localhost",
+        "port": 3306
     },
     "secret_key": helper.generate_secret_key(),
     "genius_api": "",
