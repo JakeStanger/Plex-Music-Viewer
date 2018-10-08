@@ -91,23 +91,6 @@ def listen(msg):
         update_database()
 
 
-# @app.before_request
-# def return_cached():
-#     if not request.values:
-#         response = cache.get(request.path)
-#         if response:
-#             return response
-#
-#
-# @app.after_request
-# def cache_response(response):
-#     if not request.values:
-#         try:
-#             cache.set(request.path, response, CACHE_TIMEOUT)
-#         except TypeError:
-#             pass
-#     return response
-
 # Load settings
 try:
     logger.info("Loading settings from file...")

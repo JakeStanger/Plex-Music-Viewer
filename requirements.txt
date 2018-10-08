@@ -1,3 +1,4 @@
+sqlalchemy
 pylast
 musicbrainzngs
 requests
@@ -14,3 +15,4 @@ Image
 flask-mysql
 flask-login
 lyricsgenius
+mysqlclient

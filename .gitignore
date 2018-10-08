@@ -5,10 +5,13 @@ old/
 __pycache__/
 tmp/
 torrents/
-music
 temp
-zips
 .idea
 settings.json
 images/
 lyrics/
+venv
+docs/
+music
+output.log
+zips
