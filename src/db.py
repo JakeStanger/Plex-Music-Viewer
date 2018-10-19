@@ -5,6 +5,9 @@ from sqlalchemy import create_engine, Column, Integer, String, SmallInteger, Boo
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship, session as orm_session
 from sqlalchemy.orm.exc import NoResultFound
+
+import helper
+
 Base = declarative_base()
 
 engine = None
@@ -189,6 +192,10 @@ def add_single(obj):
     session = _get_session()
     session.add(obj)
     session.commit()
+
+
+def add_user(username, password):
+    add_single(User(username=username, password=password, api_key=helper.generate_secret_key()))
 
 
 def get_user(param: str) -> User:
