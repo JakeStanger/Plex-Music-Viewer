@@ -1,6 +1,6 @@
 from json import dumps
 
-from src import helper
+import helper
 
 default_settings = {
     "librarySection": "Music",
@@ -142,5 +142,5 @@ def set_missing_as_default(settings: dict):
 
 
 def write_settings(settings: dict):
-    with open('settings.json', 'w') as f:
+    with open('../settings.json', 'w') as f:
         f.write(dumps(settings, indent=2))
