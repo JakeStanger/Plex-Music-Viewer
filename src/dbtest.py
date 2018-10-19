@@ -1,5 +1,4 @@
 from enum import Enum
-from typing import Union
 
 from flask_login import UserMixin
 from sqlalchemy import create_engine, Column, Integer, String, SmallInteger, Boolean, BigInteger, Date, Text, ForeignKey
@@ -11,6 +10,7 @@ Base = declarative_base()
 
 engine = None
 SessionMaker: sessionmaker = None
+
 
 class Permission(Enum):
     music_can_delete = 0
@@ -33,6 +33,7 @@ class Permission(Enum):
     tv_can_edit = 15
     tv_can_download = 16
     tv_can_view = 17
+
 
 def init():
     import pmv
@@ -80,6 +81,8 @@ class User(Base, UserMixin):
 
     is_admin = Column(Boolean, default=False)
     is_deleted = Column(Boolean, default=False)
+
+    api_key = Column(String(64), nullable=True)
 
     authenticated = False
 
