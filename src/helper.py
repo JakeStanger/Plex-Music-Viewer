@@ -1,11 +1,11 @@
 from flask import abort, Response, request
 
 
-def generate_secret_key():
+def generate_secret_key(length=64):
     from base64 import b64encode
     from os import urandom
 
-    random_bytes = urandom(64)
+    random_bytes = urandom(length)
     return b64encode(random_bytes).decode('utf-8')
 
 
