@@ -1,17 +1,53 @@
-from json import load
+from enum import Enum
+from typing import Union
 
 from flask_login import UserMixin
 from sqlalchemy import create_engine, Column, Integer, String, SmallInteger, Boolean, BigInteger, Date, Text, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, relationship
+from sqlalchemy.orm import sessionmaker, relationship, session as orm_session
+from sqlalchemy.orm.exc import NoResultFound
 
-settings = load(open('../settings.json'))
-db_settings = settings['database']
-
-engine = create_engine('mysql://%s:%s@%s:%s/%s'
-                       % (db_settings['user'], db_settings['password'],
-                          db_settings['hostname'], db_settings['port'], db_settings['database']))
 Base = declarative_base()
+
+engine = None
+SessionMaker: sessionmaker = None
+
+class Permission(Enum):
+    music_can_delete = 0
+    music_can_transcode = 1
+    music_can_upload = 2
+    music_can_edit = 3
+    music_can_download = 4
+    music_can_view = 5
+
+    movie_can_delete = 6
+    movie_can_transcode = 7
+    movie_can_upload = 8
+    movie_can_edit = 9
+    movie_can_download = 10
+    movie_can_view = 11
+
+    tv_can_delete = 12
+    tv_can_transcode = 13
+    tv_can_upload = 14
+    tv_can_edit = 15
+    tv_can_download = 16
+    tv_can_view = 17
+
+def init():
+    import pmv
+    print("Initialising database engine")  # TODO Add logger
+    global engine
+    global SessionMaker
+    db_settings = pmv.settings['database']
+    engine = create_engine('mysql://%s:%s@%s:%s/%s'
+                           % (db_settings['user'], db_settings['password'],
+                              db_settings['hostname'], db_settings['port'], db_settings['database']))
+
+    Base.metadata.create_all(engine)
+
+    SessionMaker = sessionmaker()
+    SessionMaker.configure(bind=engine)
 
 
 class User(Base, UserMixin):
@@ -25,21 +61,21 @@ class User(Base, UserMixin):
     music_can_transcode = Column(Boolean, default=False)
     music_can_upload = Column(Boolean, default=False)
     music_can_edit = Column(Boolean, default=False)
-    music_can_download = Column(Boolean, default=True)
+    music_can_download = Column(Boolean, default=False)
     music_can_view = Column(Boolean, default=True)
 
     movie_can_delete = Column(Boolean, default=False)
     movie_can_transcode = Column(Boolean, default=False)
     movie_can_upload = Column(Boolean, default=False)
     movie_can_edit = Column(Boolean, default=False)
-    movie_can_download = Column(Boolean, default=True)
+    movie_can_download = Column(Boolean, default=False)
     movie_can_view = Column(Boolean, default=True)
 
     tv_can_delete = Column(Boolean, default=False)
     tv_can_transcode = Column(Boolean, default=False)
     tv_can_upload = Column(Boolean, default=False)
     tv_can_edit = Column(Boolean, default=False)
-    tv_can_download = Column(Boolean, default=True)
+    tv_can_download = Column(Boolean, default=False)
     tv_can_view = Column(Boolean, default=True)
 
     is_admin = Column(Boolean, default=False)
@@ -55,6 +91,10 @@ class User(Base, UserMixin):
 
     def set_authenticated(self, auth: bool):
         self.authenticated = auth
+
+    def has_permission(self, permission: Permission) -> bool:
+        print(getattr(self, permission.name))
+        return getattr(self, permission.name)
 
 
 class Artist(Base):
@@ -139,14 +179,23 @@ class Track(Base):
         return "<%d - %s>" % (self.id, self.name)
 
 
-Base.metadata.create_all(engine)
+def _get_session() -> orm_session:
+    global SessionMaker
+    return SessionMaker()
 
-test_guy = User(username="Mr Testy", password="bfjos ;'W")
 
-Session = sessionmaker()
-Session.configure(bind=engine)
+def add_single(obj):
+    session = _get_session()
+    session.add(obj)
+    session.commit()
 
-session = Session()
 
-session.add(test_guy)
-session.commit()
+def get_user(param: str) -> User:
+    session = _get_session()
+    try:
+        if not param.isdigit():
+            return session.query(User).filter_by(username=param).one()
+        else:
+            return session.query(User).filter_by(id=param).one()
+    except NoResultFound as e:
+        print(e)  # TODO Proper error handling
