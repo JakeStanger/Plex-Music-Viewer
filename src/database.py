@@ -8,7 +8,9 @@ from urllib.parse import quote
 from flaskext.mysql import MySQL
 from pymysql import ProgrammingError
 
-from src import app, plex_helper as ph, defaults
+import defaults
+import plex_helper as ph
+import pmv
 
 mysql = None
 _cache = []
@@ -17,7 +19,7 @@ _cache = []
 def init():
     global mysql
     mysql = MySQL()
-    mysql.init_app(app.get_app())
+    mysql.init_app(pmv.get_app())
 
 
 def get_cache():
@@ -133,7 +135,7 @@ def delete(table: str, condition: Value = None):
 def get_wrapper_as_values(wrapper, type: ph.Type):
     if type == ph.Type.ARTIST:
         return [
-            Value('library_key', app.key_num(wrapper.key)),
+            Value('library_key', pmv.key_num(wrapper.key)),
             Value('name', quote(wrapper.title)),
             Value('name_sort', quote(wrapper.titleSort)),
             Value('thumb', path.basename(wrapper.thumb) if wrapper.thumb else 0),
@@ -141,10 +143,10 @@ def get_wrapper_as_values(wrapper, type: ph.Type):
         ]
     elif type == ph.Type.ALBUM:
         return [
-            Value('library_key', app.key_num(wrapper.key)),
+            Value('library_key', pmv.key_num(wrapper.key)),
             Value('name', quote(wrapper.title)),
             Value('name_sort', quote(wrapper.titleSort)),
-            Value('artist_key', app.key_num(wrapper.parentKey)),
+            Value('artist_key', pmv.key_num(wrapper.parentKey)),
             Value('artist_name', quote(wrapper.parentTitle)),
             Value('year', wrapper.year),
             Value('genres', ','.join(wrapper.genres)),
@@ -154,12 +156,12 @@ def get_wrapper_as_values(wrapper, type: ph.Type):
         ]
     elif type == ph.Type.TRACK:
         return [
-            Value('library_key', app.key_num(wrapper.key)),
+            Value('library_key', pmv.key_num(wrapper.key)),
             Value('name', quote(wrapper.title)),
             Value('name_sort', quote(wrapper.titleSort)),
-            Value('artist_key', app.key_num(wrapper.grandparentKey)),
+            Value('artist_key', pmv.key_num(wrapper.grandparentKey)),
             Value('artist_name', quote(wrapper.grandparentTitle)),
-            Value('album_key', app.key_num(wrapper.parentKey)),
+            Value('album_key', pmv.key_num(wrapper.parentKey)),
             Value('album_name', quote(wrapper.parentTitle)),
             Value('duration', wrapper.duration),
             Value('track_num', wrapper.index),

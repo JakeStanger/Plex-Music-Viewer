@@ -1,6 +1,8 @@
+import logging
 import sched
 import time
 from functools import wraps
+from logging import handlers
 from multiprocessing import Process, Manager
 from os import path, symlink, makedirs
 from urllib.parse import unquote
@@ -17,13 +19,14 @@ from simplejson import dumps, load
 from werkzeug.local import LocalProxy
 from werkzeug.security import generate_password_hash, check_password_hash
 
-from src import images, database as db, plex_helper as ph, defaults
-from src.accounts import User, Permission, PermissionType
-from src.helper import *
-from src.plex_api_extras import get_additional_track_data
-
-import logging
-from logging import handlers
+import database as db
+import dbtest
+from dbtest import Permission
+import defaults
+import images
+import plex_helper as ph
+from helper import *
+from plex_api_extras import get_additional_track_data
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -101,7 +104,7 @@ except FileNotFoundError:
     settings = defaults.default_settings
     defaults.write_settings(settings)
 
-# logger.setLevel(settings['log_level']) TODO Set log level from settings
+# logger.setLevel(settings['log_level'])  # TODO Set log level from settings
 
 logger.debug("Setting MySQL database settings.")
 app.config['MYSQL_DATABASE_USER'] = settings['database']['user']
@@ -110,6 +113,8 @@ app.config['MYSQL_DATABASE_DB'] = settings['database']['database']
 app.config['MYSQL_DATABASE_HOST'] = settings['database']['hostname']
 
 app.config.update(SECRET_KEY=settings['secret_key'])
+
+dbtest.init()
 
 if settings['serverToken']:
     logger.info("Using Plex backend.")
@@ -187,7 +192,7 @@ def import_user() -> LocalProxy:
             'Flask-Login.current_user could not be imported.')
 
 
-def require_permission(permission_type: PermissionType, permission: Permission,
+def require_permission(permission: Permission,
                        get_user: LocalProxy = import_user):  # TODO Require login here rather than on all functions
     """
     Decorating a function with this ensures the current
@@ -202,12 +207,12 @@ def require_permission(permission_type: PermissionType, permission: Permission,
         @wraps(func)
         def permission_inner(*args, **kwargs):
             user = get_user()
-            if user.has_permission(permission_type, permission):
+            if user.has_permission(permission):  # TODO URGENT Re-write permissions
                 return func(*args, **kwargs)
             else:
-                logger.info('User %s attempted to send request but did not have permission %s - %s.'
-                             % (user.username, permission_type, permission))
-                throw_error(401, "Missing permission <b>%s</b> in <b>%s</b>." % (permission, permission_type))
+                logger.info('User %s attempted to send request but did not have permission %s.'
+                            % (user.username, permission))
+                throw_error(401, "Missing permission <b>%s</b> ." % permission)
 
         return permission_inner
 
@@ -263,7 +268,7 @@ def index():
 @app.route('/artist')
 @app.route("/artist/<int:artist_id>")
 @login_required
-@require_permission(PermissionType.MUSIC, Permission.VIEW)
+@require_permission(Permission.music_can_view)
 def artist(artist_id: int = None):
     if artist_id:
         artist = ph.ArtistWrapper(row=db.get_artist_by_key(artist_id))
@@ -280,7 +285,7 @@ def artist(artist_id: int = None):
 
 @app.route("/album/<int:album_id>")
 @login_required
-@require_permission(PermissionType.MUSIC, Permission.VIEW)
+@require_permission(Permission.music_can_view)
 def album(album_id: int):
     album = ph.AlbumWrapper(row=db.get_album_by_key(album_id))
     tracks = [ph.TrackWrapper(row=row) for row in db.get_tracks_for(album.key)]
@@ -307,7 +312,7 @@ def track(track_id: int):
 @app.route("/track_file/<int:track_id>")
 @app.route("/track_file/<int:track_id>/<download>")
 @login_required
-@require_permission(PermissionType.MUSIC, Permission.VIEW)
+@require_permission(Permission.music_can_view)
 def track_file(track_id: int, download=False):
     track = ph.TrackWrapper(row=db.get_track_by_key(track_id))
 
@@ -322,7 +327,7 @@ def track_file(track_id: int, download=False):
 
 @app.route('/edit_lyrics/<int:track_id>', methods=['POST'])
 @login_required
-@require_permission(PermissionType.MUSIC, Permission.EDIT)
+@require_permission(Permission.music_can_edit)
 def edit_lyrics(track_id: int):
     current_track = ph.TrackWrapper(row=db.get_track_by_key(track_id))
 
@@ -336,7 +341,7 @@ def edit_lyrics(track_id: int):
 
 @app.route('/edit_metadata/<int:track_id>', methods=['POST'])
 @login_required
-@require_permission(PermissionType.MUSIC, Permission.EDIT)
+@require_permission(Permission.music_can_edit)
 def update_metadata(track_id: int):
     print(request.form)
     return str(track_id)  # TODO Write metadata updating (local, database, plex)
@@ -345,7 +350,7 @@ def update_metadata(track_id: int):
 @app.route("/search", methods=['GET', 'POST'])
 @app.route("/search/<query>", methods=['GET', 'POST'])
 @login_required
-@require_permission(PermissionType.MUSIC, Permission.VIEW)
+@require_permission(Permission.music_can_view)
 def search(query=None, for_artists=True, for_albums=True, for_tracks=True):
     if not query:
         query = request.form.get('query')
@@ -367,14 +372,8 @@ def search(query=None, for_artists=True, for_albums=True, for_tracks=True):
 
 
 @login_manager.user_loader
-def get_user(user):
-    row = db.get_one('users',
-                     conditions=[db.Value('LOWER(username)', user.lower())])
-
-    if row:
-        return User(row[0], row[1], row[2], row[3], row[4], row[5], row[6])
-    else:
-        return None
+def get_user(username):
+    return dbtest.get_user(username)
 
 
 @app.route("/login", methods=['GET', 'POST'])
@@ -382,13 +381,13 @@ def login():
     display_flash = False
 
     if request.method == 'POST':
-        username = request.form.get('username')
+        username = request.form.get('username').lower()
         password = request.form.get('password')
         remember = request.form.get('remember') is not None
         user = get_user(username)
 
         if user:
-            if check_password_hash(user.hashed_password, password):
+            if check_password_hash(user.password, password):
                 login_user(user, remember)
                 return redirect(request.args.get('next') or url_for('index'))
             else:
@@ -403,19 +402,12 @@ def login():
 
 @app.route('/signup', methods=['POST'])
 def sign_up():
-    username = request.form['username']
+    username = request.form['username'].lower()
     password = request.form['password']
     remember = request.form.get('remember') is not None
 
-    hashed_password = generate_password_hash(password)
-
-    defaults = settings['newUserPerms']
-
-    # Add a new user to the database with default perms and no admin
-    # TODO Replace routine with some actual code.
-
-    db.create_user(username, hashed_password, defaults[0], defaults[1], defaults[2])
-
+    dbtest.add_single(dbtest.User(username=username, password=generate_password_hash(password)))
+    # TODO Add some proper validation, redirecting for signup
     # if len(data) == 0:
     user = get_user(username)
     login_user(user, remember)
@@ -528,7 +520,7 @@ def admin():
 
 @app.route('/torrent/<artist_name>/<album_name>', methods=['POST'])
 @login_required
-@require_permission(PermissionType.MUSIC, Permission.DOWNLOAD)
+@require_permission(Permission.music_can_download)
 def torrent(artist_name, album_name):
     torrent_path = "torrents/" + artist_name + "/" + album_name + ".torrent"
 
@@ -537,7 +529,7 @@ def torrent(artist_name, album_name):
 
 @app.route('/zip/<int:album_id>', methods=['POST'])
 @login_required
-@require_permission(PermissionType.MUSIC, Permission.DOWNLOAD)
+@require_permission(Permission.music_can_download)
 def zip(album_id):
     # album = ph.get_album(artist_name, album_name)
     album = ph.AlbumWrapper(row=db.get_album_by_key(album_id))
@@ -740,7 +732,7 @@ def setup():
                                  "trackResults": int(request.form['trackResults'])}
 
     # Write new settings
-    with open('settings.json', 'w') as f:
+    with open('../settings.json', 'w') as f:
         f.write(dumps(settings, indent=4))
 
     settings['musicLibrary'] = music.locations[0]
@@ -799,6 +791,6 @@ if __name__ == "__main__":
 
     # flask.join()
     # db_updater.join()
-    app.run(debug=False)
+    app.run()
 
     db_updater.join()

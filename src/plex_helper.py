@@ -4,8 +4,9 @@ from enum import Enum
 from json import dumps
 from typing import Union
 
-from src import database as db, app
-from src.plex_api_extras import get_additional_track_data
+import database as db
+import pmv
+from plex_api_extras import get_additional_track_data
 from plexapi.audio import Artist, Album, Track
 from urllib.parse import unquote
 import lyricsgenius as genius
@@ -119,7 +120,7 @@ class TrackWrapper:
             raise ValueError("Must pass a track or database row")
 
         if track:
-            additional = get_additional_track_data(track.key, app.get_settings())
+            additional = get_additional_track_data(track.key, pmv.get_settings())
 
             self._track = track
             self.title = track.title
@@ -187,8 +188,8 @@ class TrackWrapper:
             with open(filename, 'rb') as f:
                 return f.read().decode('utf8')
 
-        if app.settings['genius_api']:
-            g = genius.Genius(app.settings['genius_api'])
+        if pmv.settings['genius_api']:
+            g = genius.Genius(pmv.settings['genius_api'])
 
             try:
                 song = g.search_song(self.title, artist_name=self.grandparentTitle)
@@ -220,7 +221,7 @@ class TrackWrapper:
 
 
 def get_artists() -> list:
-    return [ArtistWrapper(artist) for artist in app.get_music().all()]
+    return [ArtistWrapper(artist) for artist in pmv.get_music().all()]
 
 
 def get_artist(artist_name: str = None) -> Union[ArtistWrapper, None]:
@@ -228,7 +229,7 @@ def get_artist(artist_name: str = None) -> Union[ArtistWrapper, None]:
     :param artist_name: An artist name
     :return: The artist
     """
-    results = app.get_music().search(artist_name)
+    results = pmv.get_music().search(artist_name)
 
     for result in results:
         if result.title == artist_name:
@@ -273,19 +274,19 @@ def get_track(artist_name, album_name, track_name):
 
 
 def get_by_key(key: int):
-    return app.get_music().fetchItem('/library/metadata/%r' % key)
+    return pmv.get_music().fetchItem('/library/metadata/%r' % key)
 
 
 def get_parent_key(key: int):
     try:
-        return app.get_music().fetchItem('/library/metadata/%r' % key).parentKey
+        return pmv.get_music().fetchItem('/library/metadata/%r' % key).parentKey
     except:
         return None
 
 
 def get_grandparent_key(key: int):
     try:
-        return app.get_music().fetchItem('/library/metadata/%r' % key).grandparentKey
+        return pmv.get_music().fetchItem('/library/metadata/%r' % key).grandparentKey
     except:
         return None
 
@@ -345,7 +346,7 @@ def get_track_json(tracks):
     """
     track_list = []
     for track in tracks:
-        additional = get_additional_track_data(track.key, app.get_settings())
+        additional = get_additional_track_data(track.key, pmv.get_settings())
         track_list.append({
             'title': track.title,
             'titleSort': track.titleSort,

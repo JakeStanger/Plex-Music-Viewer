@@ -12,7 +12,7 @@ import scipy.cluster
 import scipy.misc
 from PIL import Image
 
-from src import database, app
+import database, pmv
 from src.plex_helper import AlbumWrapper
 
 
@@ -45,7 +45,7 @@ def _fetch_from_plex(album: AlbumWrapper) -> Optional[BytesIO]:
 
     # TODO return none if not using plex
 
-    settings = app.settings
+    settings = pmv.settings
     if not settings['serverToken']:
         return None
 
@@ -91,11 +91,11 @@ def _fetch_from_lastfm(album: AlbumWrapper) -> Optional[BytesIO]:
     :return: A BytesIO object of the image if
     one is found.
     """
-    settings = app.settings
+    settings = pmv.settings
     if not settings['lastfm_key']:
         return None
 
-    network = pl.LastFMNetwork(api_key=app.settings['lastfm_key'])
+    network = pl.LastFMNetwork(api_key=pmv.settings['lastfm_key'])
 
     album_search = pl.AlbumSearch(album.title, network)
 
@@ -176,7 +176,7 @@ def get_raw_image(thumb_id: str, width: int=None) -> Image:
 
     album = AlbumWrapper(row=database.get_album_by_key(album_id))
 
-    search_methods = app.settings['album_art_fetchers']
+    search_methods = pmv.settings['album_art_fetchers']
     i = 0
     file = None
 
@@ -280,7 +280,7 @@ def get_text_colour(hex_code: str) -> str:
 
     # Brightness is from 0-255
 
-    settings = app.get_settings()['colors']
+    settings = pmv.get_settings()['colors']
 
     if brightness > 170:
         return settings['textDark']
