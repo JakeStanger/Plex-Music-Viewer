@@ -207,12 +207,12 @@ def require_permission(permission: Permission,
         @wraps(func)
         def permission_inner(*args, **kwargs):
             user = get_user()
-            if user.has_permission(permission):  # TODO URGENT Re-write permissions
+            if user.has_permission(permission):
                 return func(*args, **kwargs)
             else:
                 logger.info('User %s attempted to send request but did not have permission %s.'
                             % (user.username, permission))
-                throw_error(401, "Missing permission <b>%s</b> ." % permission)
+                throw_error(401, "Missing permission <b>%s</b>." % permission)
 
         return permission_inner
 
