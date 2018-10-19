@@ -95,7 +95,6 @@ class User(Base, UserMixin):
         self.authenticated = auth
 
     def has_permission(self, permission: Permission) -> bool:
-        print(getattr(self, permission.name))
         return getattr(self, permission.name)
 
 
