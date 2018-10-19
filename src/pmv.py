@@ -20,8 +20,8 @@ from werkzeug.local import LocalProxy
 from werkzeug.security import generate_password_hash, check_password_hash
 
 import database as db
-import dbtest
-from dbtest import Permission
+import db
+from db import Permission
 import defaults
 import images
 import plex_helper as ph
@@ -114,7 +114,7 @@ app.config['MYSQL_DATABASE_HOST'] = settings['database']['hostname']
 
 app.config.update(SECRET_KEY=settings['secret_key'])
 
-dbtest.init()
+db.init()
 
 if settings['serverToken']:
     logger.info("Using Plex backend.")
@@ -373,7 +373,7 @@ def search(query=None, for_artists=True, for_albums=True, for_tracks=True):
 
 @login_manager.user_loader
 def get_user(username):
-    return dbtest.get_user(username)
+    return db.get_user(username)
 
 
 @app.route("/login", methods=['GET', 'POST'])
@@ -406,7 +406,7 @@ def sign_up():
     password = request.form['password']
     remember = request.form.get('remember') is not None
 
-    dbtest.add_single(dbtest.User(username=username, password=generate_password_hash(password)))
+    db.add_single(db.User(username=username, password=generate_password_hash(password)))
     # TODO Add some proper validation, redirecting for signup
     # if len(data) == 0:
     user = get_user(username)
