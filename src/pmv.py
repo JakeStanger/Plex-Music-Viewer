@@ -21,6 +21,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 
 import database as db
 import db
+import helper
 from db import Permission
 import defaults
 import images
@@ -406,7 +407,9 @@ def sign_up():
     password = request.form['password']
     remember = request.form.get('remember') is not None
 
-    db.add_single(db.User(username=username, password=generate_password_hash(password)))
+    db.add_single(db.User(username=username,
+                          password=generate_password_hash(password),
+                          api_key=helper.generate_secret_key()))
     # TODO Add some proper validation, redirecting for signup
     # if len(data) == 0:
     user = get_user(username)
