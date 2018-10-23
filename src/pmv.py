@@ -115,8 +115,6 @@ app.config['MYSQL_DATABASE_HOST'] = settings['database']['hostname']
 
 app.config.update(SECRET_KEY=settings['secret_key'])
 
-db.init()
-
 if settings['serverToken']:
     logger.info("Using Plex backend.")
     plex = PlexServer(settings['serverAddress'], settings['serverToken'])
@@ -125,6 +123,8 @@ if settings['serverToken']:
 
     logger.debug("Starting plex alert listener.")
     plex.startAlertListener(listen)
+
+# db.init()  # TODO Replace with flask-sqlalchemy
 
 # Login manager configuration
 logger.debug("Creating login manager.")
@@ -785,13 +785,15 @@ if __name__ == "__main__":
 
 
     # flask = Process(target=app.run, args=(None, None, debug))
-    db_updater = Process(target=run_scheduler, args=(_update_stack,))
+    ### db_updater = Process(target=run_scheduler, args=(_update_stack,))
 
     # flask.start()
-    db_updater.start()
+   ###  db_updater.start()
+
+    db.init()
 
     # flask.join()
     # db_updater.join()
-    app.run()
+    app.run(debug=False)
 
-    db_updater.join()
+    ### db_updater.join()
