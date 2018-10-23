@@ -12,6 +12,7 @@ default_settings = {
         "trackResults": 20
     },
     "serverToken": "",
+    "music_library": "",
     "database": {
         "user": "",
         "password": "",
