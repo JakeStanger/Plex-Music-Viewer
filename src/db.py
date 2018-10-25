@@ -12,6 +12,8 @@ from plexapi.audio import Artist as PlexArtist, Album as PlexAlbum, Track as Ple
 from plexapi.media import MediaPart, Media
 
 import helper
+import mpd_helper
+from PersistentMPDClient import PersistentMPDClient
 
 Base = declarative_base()
 
@@ -57,7 +59,7 @@ def init():
     SessionMaker = sessionmaker()
     SessionMaker.configure(bind=engine)
 
-    populate_db_from_plex()  # TODO Remove test code
+    populate_db_from_mpd()  # TODO Remove test code
 
 
 class User(Base, UserMixin):
@@ -263,8 +265,8 @@ def populate_db_from_plex():
                                 plex_id=artist_key,
                                 plex_thumb=base_key(artist.thumb) if artist.thumb else None))
         for album in albums:
-            print("\t" + album.title)
-            album_key = base_key(artist.key)
+            print("┣ " + album.title)
+            album_key = base_key(album.key)
             tracks: List[PlexTrack] = album.tracks()
 
             album_query = get_album_by_plex_key(session, album_key)
@@ -280,7 +282,7 @@ def populate_db_from_plex():
                                   plex_thumb=base_key(album.thumb)))
 
             for track in tracks:
-                print("\t\t" + track.title)
+                print("┃ \t┣ " + track.title)
                 track_key = base_key(track.key)
                 track_query = get_track_by_plex_key(session, artist_key)
                 if not track_query:
@@ -302,5 +304,70 @@ def populate_db_from_plex():
                                       format=media.audioCodec,
                                       plex_id=track_key))
 
-    print("Committing session")
+    print("\nCommitting session.")
+    session.commit()
+
+
+def _get_mpd_key(data, key):
+    """
+    Since MPD supports any tag being a list,
+    we want to just get the first one.
+    Most of the time this is due to tagging issues
+    """
+    prop = data[key]
+    if isinstance(prop, list):
+        return prop[0]
+
+    return prop
+
+
+def populate_db_from_mpd():
+    unknown_album = "[Unknown Album]"
+
+    session = _get_session()
+    client = PersistentMPDClient(host='localhost', port=6600)  # TODO Add mpd settings to config
+
+    library_dict = {}
+
+    library = client.listallinfo()
+    # Begin by assembling a dictionary
+    for song in library:
+        # Make sure this is a song and not a directory
+        if 'artist' in song:
+            artist = song['artist']
+            if artist not in library_dict:
+                library_dict[artist] = {}
+
+            # Handle songs with missing album tag
+            if 'album' in song:
+                album = song['album']
+            else:
+                album = unknown_album
+
+            if album not in library_dict[artist]:
+                library_dict[artist][album] = {
+                    'date': song['date'] if 'date' in song else 0,
+                    'songs': []
+                }
+            if 'genres' not in library_dict[artist][album]:
+                library_dict[artist][album]['genres'] = []
+            library_dict[artist][album]['genres'].append(mpd_helper.get_genres_as_text(song))
+
+            # Deduplicate
+            library_dict[artist][album]['genres'] = list(set(library_dict[artist][album]['genres']))
+
+            library_dict[artist][album]['songs'].append({key: _get_mpd_key(song, key) for key in song})
+
+    # Write debug output
+    with open('mpd.json', 'w') as f:
+        f.write(json.dumps(library_dict, indent=2))
+
+    for artist in library_dict:
+        albums = library_dict[artist]
+        session.add(Artist(name=artist,
+                           name_sort=mpd_helper.get_sort_name(artist),
+                           album_count=len(albums),
+                           mpd_id=mpd_helper.generate_artist_key()))
+
+    print("\nCommitting session.")
     session.commit()
