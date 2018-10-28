@@ -228,6 +228,10 @@ def get_artist_by_plex_key(session, plex_key: int) -> Artist:
     return session.query(Artist).filter_by(plex_id=plex_key).first()
 
 
+def get_artist_by_mpd_key(session, mpd_key: int) -> Artist:
+    return session.query(Artist).filter_by(mpd_id=mpd_key).first()
+
+
 def get_artist_by_name(session, name: str) -> Artist:
     return session.query(Artist).filter_by(name=name).first()
 
@@ -265,7 +269,7 @@ def populate_db_from_plex():
                                 plex_id=artist_key,
                                 plex_thumb=base_key(artist.thumb) if artist.thumb else None))
         for album in albums:
-            print("┣ " + album.title)
+            print('┣ ' + album.title)
             album_key = base_key(album.key)
             tracks: List[PlexTrack] = album.tracks()
 
@@ -363,11 +367,25 @@ def populate_db_from_mpd():
         f.write(json.dumps(library_dict, indent=2))
 
     for artist in library_dict:
+        print(artist)
         albums = library_dict[artist]
+        artist_id = mpd_helper.generate_artist_key(artist)
         session.add(Artist(name=artist,
                            name_sort=mpd_helper.get_sort_name(artist),
                            album_count=len(albums),
-                           mpd_id=mpd_helper.generate_artist_key()))
+                           mpd_id=artist_id))
+        for album in albums:  # TODO Figure out why this is a dict without a name
+            print('┣ ' + album)
+            album_data = albums[album]
+            tracks = album_data['songs']
+            genre_list = filter(lambda x: len(x) > 0, album_data['genres'])
+            session.add(Album(name=album,
+                              name_sort=mpd_helper.get_sort_name(album),
+                              artist_key=get_artist_by_mpd_key(session, artist_id).id,
+                              release_date=album_data['date'],
+                              genres=','.join([genre for genre in genre_list]),
+                              track_count=len(tracks),
+                              mpd_id=mpd_helper.generate_album_key(album, artist)))
 
     print("\nCommitting session.")
     session.commit()
