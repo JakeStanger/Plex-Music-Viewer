@@ -3,12 +3,12 @@ import sched
 import time
 from functools import wraps
 from logging import handlers
-from multiprocessing import Process, Manager
+from multiprocessing import Manager
 from os import path, symlink, makedirs
 from urllib.parse import unquote
 from zipfile import ZipFile
 
-from flask import Flask, render_template, send_file, redirect, url_for, flash
+from flask import Flask, render_template, send_file, redirect, url_for, flash, request
 from flask_login import LoginManager, login_required, login_user, logout_user
 from magic import Magic
 from musicbrainzngs import musicbrainz
@@ -17,15 +17,14 @@ from plexapi.library import Library, LibrarySection
 from plexapi.server import PlexServer
 from simplejson import dumps, load
 from werkzeug.local import LocalProxy
-from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.security import check_password_hash
 
 import database as db
 import db
-import helper
-from db import Permission
 import defaults
 import images
 import plex_helper as ph
+from db import Permission
 from helper import *
 from plex_api_extras import get_additional_track_data
 
@@ -733,7 +732,7 @@ def setup():
                                  "trackResults": int(request.form['trackResults'])}
 
     # Write new settings
-    with open('../settings.json', 'w') as f:
+    with open('settings.json', 'w') as f:
         f.write(dumps(settings, indent=4))
 
     settings['musicLibrary'] = music.locations[0]
