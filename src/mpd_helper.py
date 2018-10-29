@@ -20,12 +20,12 @@ def generate_artist_key(name: str) -> int:
     return get_numbers(md5(name.encode('utf8')).hexdigest())
 
 
-def generate_album_key(name: str, artist: str):
+def generate_album_key(name: str, artist: str) -> int:
     return get_numbers(md5(('%s%s' % (name, artist)).encode('utf8')).hexdigest())
 
 
-def generate_track_key(song):
-    pass
+def generate_track_key(name: str, album: str, artist: str, full_path: str) -> int:
+    return get_numbers(md5(('%s%s%s%s' % (name, album, artist, full_path)).encode('utf8')).hexdigest())
 
 
 def get_genres_as_text(song) -> Optional[str]:
