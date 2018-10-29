@@ -1,5 +1,8 @@
 import json
+import operator
+import os
 from enum import Enum
+from functools import reduce
 from os import path
 from typing import List
 
@@ -10,10 +13,12 @@ from sqlalchemy.orm import sessionmaker, relationship, session as orm_session
 from sqlalchemy.orm.exc import NoResultFound
 from plexapi.audio import Artist as PlexArtist, Album as PlexAlbum, Track as PlexTrack
 from plexapi.media import MediaPart, Media
+import mutagen
 
 import helper
 import mpd_helper
 from PersistentMPDClient import PersistentMPDClient
+from timeit import default_timer as timer
 
 Base = declarative_base()
 
@@ -59,7 +64,7 @@ def init():
     SessionMaker = sessionmaker()
     SessionMaker.configure(bind=engine)
 
-    populate_db_from_mpd()  # TODO Remove test code
+    print(get_album_by_name(SessionMaker(), "King Crimson", "Red").total_size())
 
 
 class User(Base, UserMixin):
@@ -160,7 +165,8 @@ class Album(Base):
         return "<%d - %s>" % (self.id, self.name)
 
     def total_size(self):
-        pass  # TODO Calculate total size
+        pass
+        return reduce(operator.add, [track.size for track in self.tracks])
 
 
 class Track(Base):
@@ -177,7 +183,7 @@ class Track(Base):
     album_key = Column(Integer, ForeignKey('albums_test.id'))
     album_name = Column(String(191))
 
-    duration = Column(Integer)
+    duration = Column(BigInteger)
 
     track_num = Column(SmallInteger)
     disc_num = Column(SmallInteger)
@@ -240,12 +246,20 @@ def get_album_by_plex_key(session, plex_key: int) -> Album:
     return session.query(Album).filter_by(plex_id=plex_key).first()
 
 
-def get_album_by_name(session, name: str) -> Album:
-    return session.query(Album).filter_by(name=name).first()
+def get_album_by_mpd_key(session, mpd_key: int) -> Album:
+    return session.query(Album).filter_by(mpd_id=mpd_key).first()
+
+
+def get_album_by_name(session, artist_name: str, name: str) -> Album:
+    return session.query(Album).filter_by(name=name, artist_name=artist_name).first()
 
 
 def get_track_by_plex_key(session, plex_key: int) -> Track:
     return session.query(Track).filter_by(plex_id=plex_key).first()
+
+
+def get_track_by_mpd_key(session, mpd_key: int) -> Track:
+    return session.query(Track).filter_by(mpd_id=mpd_key).first()
 
 
 def base_key(key: str) -> int:
@@ -254,6 +268,9 @@ def base_key(key: str) -> int:
 
 def populate_db_from_plex():
     import pmv
+
+    start_time = timer()
+
     session = _get_session()
     artists: List[PlexArtist] = pmv.music.all()
     for artist in artists:
@@ -263,11 +280,12 @@ def populate_db_from_plex():
 
         artist_query = get_artist_by_plex_key(session, artist_key)
         if not artist_query:
-             session.add(Artist(name=artist.title,
-                                name_sort=artist.titleSort,
-                                album_count=len(albums),
-                                plex_id=artist_key,
-                                plex_thumb=base_key(artist.thumb) if artist.thumb else None))
+            session.add(Artist(name=artist.title,
+                               name_sort=artist.titleSort,
+                               album_count=len(albums),
+                               plex_id=artist_key,
+                               plex_thumb=base_key(artist.thumb) if artist.thumb else None))
+            artist_query = get_artist_by_plex_key(session, artist_key)
         for album in albums:
             print('┣ ' + album.title)
             album_key = base_key(album.key)
@@ -277,13 +295,14 @@ def populate_db_from_plex():
             if not album_query:
                 session.add(Album(name=album.title,
                                   name_sort=album.titleSort,
-                                  artist_key=get_artist_by_plex_key(session, artist_key).id,
+                                  artist_key=artist_query.id,
                                   artist_name=artist.title,
                                   release_date=album.year,
                                   genres=','.join([genre.tag for genre in album.genres]),
                                   track_count=len(tracks),
                                   plex_id=album_key,
                                   plex_thumb=base_key(album.thumb)))
+                album_query = get_album_by_plex_key(session, album_key)
 
             for track in tracks:
                 print("┃ \t┣ " + track.title)
@@ -295,9 +314,9 @@ def populate_db_from_plex():
 
                     session.add(Track(name=track.title,
                                       name_sort=track.titleSort,
-                                      artist_key=get_artist_by_plex_key(session, artist_key).id,
+                                      artist_key=artist_query.id,
                                       artist_name=artist.title,
-                                      album_key=get_album_by_plex_key(session, album_key).id,
+                                      album_key=album_query.id,
                                       album_name=album.title,
                                       duration=track.duration,
                                       track_num=track.index,
@@ -308,7 +327,8 @@ def populate_db_from_plex():
                                       format=media.audioCodec,
                                       plex_id=track_key))
 
-    print("\nCommitting session.")
+    print("\nFinished constructing session in %r seconds" % round(timer() - start_time))
+    print("Committing session.\n")
     session.commit()
 
 
@@ -326,6 +346,11 @@ def _get_mpd_key(data, key):
 
 
 def populate_db_from_mpd():
+    import pmv
+
+    start_time = timer()
+
+    music_library = pmv.settings['music_library']
     unknown_album = "[Unknown Album]"
 
     session = _get_session()
@@ -335,6 +360,7 @@ def populate_db_from_mpd():
 
     library = client.listallinfo()
     # Begin by assembling a dictionary
+    print("Assembling dictionary. Please wait...")
     for song in library:
         # Make sure this is a song and not a directory
         if 'artist' in song:
@@ -349,8 +375,16 @@ def populate_db_from_mpd():
                 album = unknown_album
 
             if album not in library_dict[artist]:
+                # Date error checking
+                if 'date' in song:
+                    date = song['date'].replace('.', '-')
+                    if '-' not in date:
+                        date = '%s-01-01' % date
+                else:
+                    date = None  # Don't write anything for missing dates
+
                 library_dict[artist][album] = {
-                    'date': song['date'] if 'date' in song else 0,
+                    'date': date,
                     'songs': []
                 }
             if 'genres' not in library_dict[artist][album]:
@@ -360,32 +394,69 @@ def populate_db_from_mpd():
             # Deduplicate
             library_dict[artist][album]['genres'] = list(set(library_dict[artist][album]['genres']))
 
-            library_dict[artist][album]['songs'].append({key: _get_mpd_key(song, key) for key in song})
+            if 'track' not in song:
+                song['track'] = 1
+            if 'disc' not in song:
+                song['disc'] = 1
 
-    # Write debug output
-    with open('mpd.json', 'w') as f:
-        f.write(json.dumps(library_dict, indent=2))
+            library_dict[artist][album]['songs'].append({key: _get_mpd_key(song, key) for key in song})
 
     for artist in library_dict:
         print(artist)
         albums = library_dict[artist]
         artist_id = mpd_helper.generate_artist_key(artist)
-        session.add(Artist(name=artist,
-                           name_sort=mpd_helper.get_sort_name(artist),
-                           album_count=len(albums),
-                           mpd_id=artist_id))
-        for album in albums:  # TODO Figure out why this is a dict without a name
+
+        artist_query = get_artist_by_mpd_key(session, artist_id)
+        if not artist_query:
+            session.add(Artist(name=artist,
+                               name_sort=mpd_helper.get_sort_name(artist),
+                               album_count=len(albums),
+                               mpd_id=artist_id))
+            artist_query = get_artist_by_mpd_key(session, artist_id)
+
+        for album in albums:
             print('┣ ' + album)
             album_data = albums[album]
+            album_id = mpd_helper.generate_album_key(album, artist)
             tracks = album_data['songs']
-            genre_list = filter(lambda x: len(x) > 0, album_data['genres'])
-            session.add(Album(name=album,
-                              name_sort=mpd_helper.get_sort_name(album),
-                              artist_key=get_artist_by_mpd_key(session, artist_id).id,
-                              release_date=album_data['date'],
-                              genres=','.join([genre for genre in genre_list]),
-                              track_count=len(tracks),
-                              mpd_id=mpd_helper.generate_album_key(album, artist)))
 
-    print("\nCommitting session.")
+            album_query = get_album_by_mpd_key(session, album_id)
+            if not album_query:
+                genre_list = filter(lambda x: len(x) > 0, album_data['genres'])
+                session.add(Album(name=album,
+                                  name_sort=mpd_helper.get_sort_name(album),
+                                  artist_key=artist_query.id,
+                                  artist_name=artist,
+                                  release_date=album_data['date'],
+                                  genres=','.join([genre for genre in genre_list]),
+                                  track_count=len(tracks),
+                                  mpd_id=album_id))
+                album_query = get_album_by_mpd_key(session, album_id)
+
+            for track in tracks:
+                track_title = track['title']
+                print("┃ \t┣ " + track_title)
+
+                full_path = music_library + track['file']
+                track_key = mpd_helper.generate_track_key(track_title, album, artist, full_path)
+
+                track_query = get_track_by_mpd_key(session, track_key)
+                if not track_query:
+                    session.add(Track(name=track_title,
+                                      name_sort=mpd_helper.get_sort_name(track_title),
+                                      artist_key=artist_query.id,
+                                      artist_name=artist,
+                                      album_key=album_query.id,
+                                      album_name=album,
+                                      duration=track['duration'] * 1000,  # Store time in ms
+                                      track_num=track['track'],
+                                      disc_num=track['disc'],
+                                      download_url=full_path,
+                                      bitrate=mutagen.File(full_path).info.bitrate / 1000,  # Store bitrate in kbps
+                                      size=os.path.getsize(full_path),
+                                      format=full_path.rpartition('.')[-1].lower(),
+                                      mpd_id=track_key))
+
+    print("\nFinished constructing session in %r seconds" % round(timer() - start_time))
+    print("Committing session.\n")
     session.commit()
