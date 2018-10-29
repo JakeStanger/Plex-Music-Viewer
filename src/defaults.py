@@ -12,7 +12,7 @@ default_settings = {
         "trackResults": 20
     },
     "serverToken": "",
-    "music_library": "",
+    "music_library": "",  # TODO Make sure this always ends in a /
     "database": {
         "user": "",
         "password": "",
@@ -143,5 +143,5 @@ def set_missing_as_default(settings: dict):
 
 
 def write_settings(settings: dict):
-    with open('../settings.json', 'w') as f:
+    with open('settings.json', 'w') as f:
         f.write(dumps(settings, indent=2))
