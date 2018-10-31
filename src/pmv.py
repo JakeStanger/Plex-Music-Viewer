@@ -19,11 +19,10 @@ from simplejson import dumps, load
 from werkzeug.local import LocalProxy
 from werkzeug.security import check_password_hash
 
-import database as db
 import db
 import defaults
+import lyrics
 import images
-import plex_helper as ph
 from db import Permission
 from helper import *
 from plex_api_extras import get_additional_track_data
@@ -51,48 +50,48 @@ manager = Manager()
 _update_stack = manager.list()
 
 
-def trigger_database_update():
-    cache = db.get_cache()
-    if len(cache) > 0:
-        db.update_after_refresh(cache)
-        db.clear_cache()
+# def trigger_database_update():
+#     cache = db.get_cache()
+#     if len(cache) > 0:
+#         db.update_after_refresh(cache)
+#         db.clear_cache()
 
 
-def listen(msg):
-    if msg['type'] == 'timeline':
-        timeline_entry = msg['TimelineEntry'][0]
-
-        # item = ph.get_by_key(timeline_entry['itemID'])
-        # type = ph.Type(timeline_entry['type']).name
-
-        # _update_stack.append({item: type})
-
-        # print(msg)
-
-        state = timeline_entry['metadataState']
-
-        data = {
-            'section_id': timeline_entry['sectionID'],
-            'library_key': timeline_entry['itemID'],
-            'type': ph.Type(timeline_entry['type']),
-            # 'deleted': state == 'deleted',
-        }
-
-        # print(data)
-
-        if data not in _update_stack:
-            _update_stack.append(data)
-
-        print(_update_stack)
-    #
-    #     db.update_after_refresh([data])
-    #
-    #     if 'updatedAt' in timeline_entry:
-    #
-    #
-    elif msg['type'] == 'backgroundProcessingQueue':
-        update_database()
-
+# def listen(msg):
+#     if msg['type'] == 'timeline':
+#         timeline_entry = msg['TimelineEntry'][0]
+#
+#         # item = ph.get_by_key(timeline_entry['itemID'])
+#         # type = ph.Type(timeline_entry['type']).name
+#
+#         # _update_stack.append({item: type})
+#
+#         # print(msg)
+#
+#         state = timeline_entry['metadataState']
+#
+#         data = {
+#             'section_id': timeline_entry['sectionID'],
+#             'library_key': timeline_entry['itemID'],
+#             'type': ph.Type(timeline_entry['type']),
+#             # 'deleted': state == 'deleted',
+#         }
+#
+#         # print(data)
+#
+#         if data not in _update_stack:
+#             _update_stack.append(data)
+#
+#         print(_update_stack)
+#     #
+#     #     db.update_after_refresh([data])
+#     #
+#     #     if 'updatedAt' in timeline_entry:
+#     #
+#     #
+#     elif msg['type'] == 'backgroundProcessingQueue':
+#         update_database()
+#
 
 # Load settings
 try:
@@ -121,7 +120,7 @@ if settings['serverToken']:
     settings['musicLibrary'] = music.locations[0]
 
     logger.debug("Starting plex alert listener.")
-    plex.startAlertListener(listen)
+    # plex.startAlertListener(listen)  # TODO Fix alert listener
 
 # db.init()  # TODO Replace with flask-sqlalchemy
 
@@ -232,10 +231,10 @@ def admin_required(func, get_user=import_user):
     return admin_wrapper
 
 
-def get_users(with_password: bool = False):
-    return db.get_all('users',
-                      not with_password and ['user_id', 'username', 'music_perms', 'movie_perms', 'tv_perms',
-                                             'is_admin'], [db.Value('is_deleted', 0)])
+# def get_users(with_password: bool = False):
+#     return db.get_all('users',
+#                       not with_password and ['user_id', 'username', 'music_perms', 'movie_perms', 'tv_perms',
+#                                              'is_admin'], [db.Value('is_deleted', 0)])
 
 
 # # Support login via API TODO introduce API keys or something
@@ -270,14 +269,15 @@ def index():
 @login_required
 @require_permission(Permission.music_can_view)
 def artist(artist_id: int = None):
+    session = db.get_session()
     if artist_id:
-        artist = ph.ArtistWrapper(row=db.get_artist_by_key(artist_id))
-        albums = [ph.AlbumWrapper(row=row) for row in db.get_albums_for(artist.key)]
+        artist = db.get_artist_by_id(session, artist_id)
+        albums = artist.albums
         albums.sort(key=lambda x: x.year, reverse=True)
 
-        return render_template('table.html', albums=albums, title=artist.title)
+        return render_template('table.html', albums=albums, title=artist.name)
     else:
-        artists = [ph.ArtistWrapper(row=row) for row in db.get_artists()]
+        artists = db.get_artists(session)
         artists.sort(key=lambda x: x.titleSort)
 
         return render_template('table.html', artists=artists, title="Artists")
@@ -287,26 +287,25 @@ def artist(artist_id: int = None):
 @login_required
 @require_permission(Permission.music_can_view)
 def album(album_id: int):
-    album = ph.AlbumWrapper(row=db.get_album_by_key(album_id))
-    tracks = [ph.TrackWrapper(row=row) for row in db.get_tracks_for(album.key)]
+    session = db.get_session()
+    album = db.get_album_by_id(session, album_id)
+    tracks = album.tracks
     tracks = sorted(tracks, key=lambda x: (x.parentIndex, x.index))
 
-    return render_template('table.html', tracks=tracks, title=album.title, key=album.key, parentKey=album.parentKey,
-                           parentTitle=album.parentTitle, settings=settings, totalSize=album.size_formatted())
+    return render_template('table.html', tracks=tracks, title=album.name, key=album.id, parentKey=album.artist_key,
+                           parentTitle=album.artist_name, settings=settings, totalSize=album.total_size())
 
 
 @app.route("/track/<int:track_id>")
 def track(track_id: int):
-    track = ph.TrackWrapper(row=db.get_track_by_key(track_id))
-    thumb_id = track.parent().thumb
+    session = db.get_session()
+    track = db.get_track_by_id(track_id, session)
 
-    banner_colour = images.get_predominant_colour(thumb_id)
+    banner_colour = images.get_predominant_colour(track.album)
     text_colour = images.get_text_colour(banner_colour)
 
-    lyrics = track.lyrics()
-
-    return render_template('track.html', track=track, thumb_id=thumb_id,
-                           banner_colour=banner_colour, text_colour=text_colour, lyrics=lyrics.split("\n"))
+    return render_template('track.html', track=track,
+                           banner_colour=banner_colour, text_colour=text_colour, lyrics=lyrics.get_song_lyrics(track))
 
 
 @app.route("/track_file/<int:track_id>")
@@ -314,25 +313,26 @@ def track(track_id: int):
 @login_required
 @require_permission(Permission.music_can_view)
 def track_file(track_id: int, download=False):
-    track = ph.TrackWrapper(row=db.get_track_by_key(track_id))
+    session = db.get_session()
+    track = db.get_track_by_id(session, track_id)
 
-    decoded = unquote(track.downloadURL)
+    decoded = unquote(track.download_url)
 
     mime = Magic(mime=True)
     mimetype = mime.from_file(decoded)
 
     return send_file(decoded, mimetype=mimetype,
-                     as_attachment=download, attachment_filename='%s.%s' % (track.title, track.format))
+                     as_attachment=download, attachment_filename='%s.%s' % (track.name, track.format))
 
 
 @app.route('/edit_lyrics/<int:track_id>', methods=['POST'])
 @login_required
 @require_permission(Permission.music_can_edit)
 def edit_lyrics(track_id: int):
-    current_track = ph.TrackWrapper(row=db.get_track_by_key(track_id))
+    session = db.get_session()
+    current_track = db.get_track_by_id(session, track_id)
 
-    lyrics = request.form.get('lyrics')
-    current_track.update_lyrics(lyrics)
+    lyrics.update_lyrics(current_track, request.form.get('lyrics'))
 
     flash('Lyrics successfully updated', category='success')
 
@@ -347,28 +347,29 @@ def update_metadata(track_id: int):
     return str(track_id)  # TODO Write metadata updating (local, database, plex)
 
 
-@app.route("/search", methods=['GET', 'POST'])
-@app.route("/search/<query>", methods=['GET', 'POST'])
-@login_required
-@require_permission(Permission.music_can_view)
-def search(query=None, for_artists=True, for_albums=True, for_tracks=True):
-    if not query:
-        query = request.form.get('query')
-
-    if for_artists:
-        artists = music.search(query, libtype="artist", maxresults=settings['searchResults']['artistResults'])
-        artists = [ph.ArtistWrapper(artist) for artist in artists]
-
-    if for_albums:
-        albums = music.search(query, libtype="album", maxresults=settings['searchResults']['albumResults'])
-        albums = [ph.AlbumWrapper(album) for album in albums]
-
-    if for_tracks:
-        tracks = music.search(query, libtype="track", maxresults=settings['searchResults']['trackResults'])
-        tracks = [ph.TrackWrapper(track) for track in tracks]
-
-    return render_template('table.html', artists=artists, albums=albums, tracks=tracks, title=query,
-                           is_search=True, prev=request.referrer)
+# TODO URGENT - Rewrite search
+# @app.route("/search", methods=['GET', 'POST'])
+# @app.route("/search/<query>", methods=['GET', 'POST'])
+# @login_required
+# @require_permission(Permission.music_can_view)
+# def search(query=None, for_artists=True, for_albums=True, for_tracks=True):
+#     if not query:
+#         query = request.form.get('query')
+#
+#     if for_artists:
+#         artists = music.search(query, libtype="artist", maxresults=settings['searchResults']['artistResults'])
+#         artists = [ph.ArtistWrapper(artist) for artist in artists]
+#
+#     if for_albums:
+#         albums = music.search(query, libtype="album", maxresults=settings['searchResults']['albumResults'])
+#         albums = [ph.AlbumWrapper(album) for album in albums]
+#
+#     if for_tracks:
+#         tracks = music.search(query, libtype="track", maxresults=settings['searchResults']['trackResults'])
+#         tracks = [ph.TrackWrapper(track) for track in tracks]
+#
+#     return render_template('table.html', artists=artists, albums=albums, tracks=tracks, title=query,
+#                            is_search=True, prev=request.referrer)
 
 
 @login_manager.user_loader
@@ -423,11 +424,13 @@ def logout():
     return redirect(url_for('index'))
 
 
-@app.route('/delete_user_by_name/<username>', methods=['POST', 'DELETE'])
+@app.route('/delete_user/<str:username>', methods=['POST', 'DELETE'])
 @login_required
 @admin_required
-def delete_user_by_name(username):
-    db.update('users', [db.Value('is_deleted', 1)], [db.Value('LOWER(username)', username.lower())])
+def delete_user(username):
+    session = db.get_session()
+    db.delete_user_by_username(session, username)
+    session.commit()
 
     if request.method == 'POST':
         flash("User '%s' successfully deleted." % username, category='success')
@@ -470,26 +473,27 @@ def restore_user_by_id(id: int):
     delete_user_by_id(id, True)
 
 
-@login_required
-@admin_required
-def edit_user_by_id(id: int):
-    form = request.form
-
-    db.update('users', [
-        db.Value('username', form.get('username')),
-        db.Value('music_perms', form.get('music_perms')),
-        db.Value('movie_perms', form.get('movie_perms')),
-        db.Value('tv_perms', form.get('tv_perms')),
-        db.Value('is_admin', form.get('is_admin'))
-    ],
-              [db.Value('user_id', id)])
-
-    message = "User with ID %r' successfully edited." % id
-    if request.method == 'POST':
-        flash(message, category='success')
-        return redirect(request.referrer)
-    else:
-        return dumps({'message': message})
+# TODO URGENT - Rewrite this to be more dynamic - only update given values
+# @login_required
+# @admin_required
+# def edit_user_by_id(id: int):
+#     form = request.form
+#
+#     db.update('users', [
+#         db.Value('username', form.get('username')),
+#         db.Value('music_perms', form.get('music_perms')),
+#         db.Value('movie_perms', form.get('movie_perms')),
+#         db.Value('tv_perms', form.get('tv_perms')),
+#         db.Value('is_admin', form.get('is_admin'))
+#     ],
+#               [db.Value('user_id', id)])
+#
+#     message = "User with ID %r' successfully edited." % id
+#     if request.method == 'POST':
+#         flash(message, category='success')
+#         return redirect(request.referrer)
+#     else:
+#         return dumps({'message': message})
 
 
 @app.route('/edit_user', methods=['POST'])
@@ -547,12 +551,13 @@ def zip(album_id):
     return send_file(filename, as_attachment=True, attachment_filename=album.title + '.zip')
 
 
-@app.route('/image/<path:thumb_id>')
-@app.route('/image/<path:thumb_id>/<width>')
+@app.route('/image/<int:album_id>')
+@app.route('/image/<int:album_id>/<width>')
 # @login_required
 # @require_permission(PermissionType.MUSIC, Permission.VIEW)
-def image(thumb_id, width=None):
-    return send_file(images.get_image(thumb_id, width), mimetype='image/png')
+def image(album_id: int, width=None):
+    return send_file(images.get_image(db.get_album_by_id(db.get_session(), album_id),
+                                      width), mimetype='image/png')
 
 
 def get_parents(media, parents):

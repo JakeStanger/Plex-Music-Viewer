@@ -1,5 +1,4 @@
 import os
-import re
 from io import BytesIO
 from typing import Optional
 from urllib.request import urlopen
@@ -12,28 +11,19 @@ import scipy.cluster
 import scipy.misc
 from PIL import Image
 
-import database, pmv
-from src.plex_helper import AlbumWrapper
+import pmv
+from db import Album
 
 
-def get_friendly_thumb_id(thumb_id: str) -> str:
-    """
-    Gets both numerical values in the thumb id
-    and separates them with a dash.
-
-    Useful for cases such as file names.
-
-    :param thumb_id: The full thumb-id
-    :return: The numerical values separated by a dash.
-    """
-    return '-'.join(num for num in re.findall('\\d+', thumb_id))
+def get_image_path(album: Album, size: int) -> str:
+    return 'images/%s_%r.jpg' % (album.id, size)
 
 
 def _get_url_as_bytesio(url: str) -> BytesIO:
     return BytesIO(urlopen(url).read())
 
 
-def _fetch_from_plex(album: AlbumWrapper) -> Optional[BytesIO]:
+def _fetch_from_plex(album: Album) -> Optional[BytesIO]:
     """
     Queries the Plex server using the ID
     and fetches the set thumbnail for the item.
@@ -49,13 +39,13 @@ def _fetch_from_plex(album: AlbumWrapper) -> Optional[BytesIO]:
     if not settings['serverToken']:
         return None
 
-    thumb_id = '/' + album.thumb
+    thumb_id = '/' + str(album.plex_thumb)
     url = settings['serverAddress'] + thumb_id + "?X-Plex-Token=" + settings['serverToken']
 
     return _get_url_as_bytesio(url)
 
 
-def _fetch_from_musicbrainz(album: AlbumWrapper) -> Optional[str]:
+def _fetch_from_musicbrainz(album: Album, size) -> Optional[str]:
     """
     Looks up the album and artist on musicbrainz and
     fetches the front cover album art for it.
@@ -64,11 +54,9 @@ def _fetch_from_musicbrainz(album: AlbumWrapper) -> Optional[str]:
     :return: The filename of the downloaded image
     if one was found.
     """
-    release = mb.search_releases(artist=album.parentTitle, release=album.title, limit=1)['release-list'][0]
+    release = mb.search_releases(artist=album.artist_name, release=album.name, limit=1)['release-list'][0]
 
-    size = 250
-
-    filename = 'images/%s_250.jpg' % get_friendly_thumb_id(album.thumb)
+    filename = get_image_path(album, size)
 
     try:
         with open(filename, 'wb') as f:
@@ -79,7 +67,7 @@ def _fetch_from_musicbrainz(album: AlbumWrapper) -> Optional[str]:
     return filename
 
 
-def _fetch_from_lastfm(album: AlbumWrapper) -> Optional[BytesIO]:
+def _fetch_from_lastfm(album: Album) -> Optional[BytesIO]:
     """
     Looks up the album on last.fm and fetches
     album art for it.
@@ -97,7 +85,7 @@ def _fetch_from_lastfm(album: AlbumWrapper) -> Optional[BytesIO]:
 
     network = pl.LastFMNetwork(api_key=pmv.settings['lastfm_key'])
 
-    album_search = pl.AlbumSearch(album.title, network)
+    album_search = pl.AlbumSearch(album.name, network)
 
     if album_search.get_total_result_count() == 0:
         return None
@@ -109,7 +97,7 @@ def _fetch_from_lastfm(album: AlbumWrapper) -> Optional[BytesIO]:
     return _get_url_as_bytesio(url)
 
 
-def _fetch_from_local(album: AlbumWrapper) -> Optional[str]:
+def _fetch_from_local(album: Album) -> Optional[str]:
     """
     Looks for images in the album directory.
     Checks each track in case they are in separated directories.
@@ -123,7 +111,7 @@ def _fetch_from_local(album: AlbumWrapper) -> Optional[str]:
     valid_images = [".jpg", ".gif", ".png", ".tga"]
 
     visited_paths = []
-    for track in album.tracks():
+    for track in album.tracks:
         folder = os.path.dirname(track.downloadURL)
 
         if folder in visited_paths:
@@ -140,12 +128,12 @@ def _fetch_from_local(album: AlbumWrapper) -> Optional[str]:
     return None
 
 
-def save_image_to_disk(thumb_id: str, image: Image, width: Optional[int]=None):
+def save_image_to_disk(album: Album, image: Image, width: int):
     """
     Writes the given image to disk using
     its friendly ID as the filename.
 
-    :param thumb_id: The image thumbnail ID
+    :param album: The album associated with the image
     :param image: The image object
     :param width: The desired width of the image
     :return:
@@ -153,28 +141,21 @@ def save_image_to_disk(thumb_id: str, image: Image, width: Optional[int]=None):
     if not os.path.exists('images'):
         os.makedirs('images')
 
-    image.save("images/%s_%s.png" % (get_friendly_thumb_id(thumb_id), str(width) if width else ''), 'PNG', quality=90)
+    image.save(get_image_path(album, width), str(width), 'PNG', quality=90)
 
 
-def read_image_from_disk(thumb_id, width: Optional[int]=None):
+def read_image_from_disk(album: Album, width: int):
     try:
-        return Image.open("/images/%s_%s.png" % (get_friendly_thumb_id(thumb_id), str(width) if width else ''))
+
+        return Image.open(get_image_path(album, width), str(width))
     except FileNotFoundError:
         return None
 
 
-def get_raw_image(thumb_id: str, width: int=None) -> Image:
-    if thumb_id.startswith('/'):
-        thumb_id = thumb_id[1:]
-
-    cached = read_image_from_disk(thumb_id, width)
+def get_raw_image(album: Album, width: int=None) -> Image:
+    cached = read_image_from_disk(album, width)
     if cached:
         return cached
-
-    friendly_id = get_friendly_thumb_id(thumb_id)
-    album_id = int(friendly_id.split('-')[0])
-
-    album = AlbumWrapper(row=database.get_album_by_key(album_id))
 
     search_methods = pmv.settings['album_art_fetchers']
     i = 0
@@ -192,15 +173,15 @@ def get_raw_image(thumb_id: str, width: int=None) -> Image:
         size = int(width), int(width)
         image.thumbnail(size, Image.ANTIALIAS)
 
-    save_image_to_disk(thumb_id, image, width)
+    save_image_to_disk(album, image, width)
     return image
     # except Exception as e:
     #     print(e)
     #     app.throw_error(400, "invalid thumb-id")
 
 
-def get_image(thumb_id: str, width: Optional[int]=None) -> BytesIO:
-    image = get_raw_image(thumb_id, width)
+def get_image(album: Album, width: Optional[int]=None) -> BytesIO:
+    image = get_raw_image(album, width)
     tmp_image = BytesIO()
     image.save(tmp_image, 'PNG', quality=90)
     tmp_image.seek(0)
@@ -208,16 +189,16 @@ def get_image(thumb_id: str, width: Optional[int]=None) -> BytesIO:
     return tmp_image
 
 
-def get_predominant_colour(thumb_id: str) -> str:
+def get_predominant_colour(album: Album) -> str:
     """
     Gets the most predominant colour in an image.
 
-    :param thumb_id: The image thumbnail ID
+    :param album: The album associated with the image
     :return: A hex code (including starting hash)
     """
     num_clusters = 5
 
-    image = get_raw_image(thumb_id, width=150)
+    image = get_raw_image(album, width=150)
     ar = np.asarray(image)
     shape = ar.shape
 

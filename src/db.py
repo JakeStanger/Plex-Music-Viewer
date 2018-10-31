@@ -130,8 +130,8 @@ class Artist(Base):
 
     mpd_id = Column(BigInteger, unique=True)
 
-    albums = relationship('Album', back_populates='artist')
-    tracks = relationship('Track', back_populates='artist')
+    albums: list = relationship('Album', back_populates='artist')
+    tracks: list = relationship('Track', back_populates='artist')
 
     def __repr__(self):
         return "<%d - %s>" % (self.id, self.name)
@@ -159,7 +159,8 @@ class Album(Base):
     mpd_id = Column(BigInteger, unique=True)
 
     artist = relationship('Artist', back_populates='albums')
-    tracks = relationship('Track', back_populates='album')
+
+    tracks: list = relationship('Track', back_populates='album')
 
     def __repr__(self):
         return "<%d - %s>" % (self.id, self.name)
@@ -204,13 +205,13 @@ class Track(Base):
         return "<%d - %s>" % (self.id, self.name)
 
 
-def _get_session() -> orm_session:
+def get_session() -> orm_session:
     global SessionMaker
     return SessionMaker()
 
 
 def add_single(obj):
-    session = _get_session()
+    session = get_session()
     session.add(obj)
     session.commit()
 
@@ -220,7 +221,11 @@ def add_user(username, password):
 
 
 def get_user(param: str) -> User:
-    session = _get_session()
+    """
+    Used by flask-login.
+    Accepts username or user ID.
+    """
+    session = get_session()
     try:
         if not param.isdigit():
             return session.query(User).filter_by(username=param).one()
@@ -228,6 +233,19 @@ def get_user(param: str) -> User:
             return session.query(User).filter_by(id=param).one()
     except NoResultFound as e:
         print(e)  # TODO Proper error handling
+
+
+def delete_user_by_username(session, username: str):
+    user: User = session.query(User).filter_by(username=username)
+    user.is_deleted = True
+
+
+def get_artists(session):
+    return session.query(Artist).all()
+
+
+def get_artist_by_id(session, key: int) -> Artist:
+    return session.query(Artist).filter_by(id=key).first()
 
 
 def get_artist_by_plex_key(session, plex_key: int) -> Artist:
@@ -242,6 +260,10 @@ def get_artist_by_name(session, name: str) -> Artist:
     return session.query(Artist).filter_by(name=name).first()
 
 
+def get_album_by_id(session, key: int) -> Album:
+    return session.query(Album).filter_by(id=key).first()
+
+
 def get_album_by_plex_key(session, plex_key: int) -> Album:
     return session.query(Album).filter_by(plex_id=plex_key).first()
 
@@ -252,6 +274,10 @@ def get_album_by_mpd_key(session, mpd_key: int) -> Album:
 
 def get_album_by_name(session, artist_name: str, name: str) -> Album:
     return session.query(Album).filter_by(name=name, artist_name=artist_name).first()
+
+
+def get_track_by_id(session, key: int) -> Track:
+    return session.query(Track).filter_by(plex_id=key).first()
 
 
 def get_track_by_plex_key(session, plex_key: int) -> Track:
@@ -271,7 +297,7 @@ def populate_db_from_plex():
 
     start_time = timer()
 
-    session = _get_session()
+    session = get_session()
     artists: List[PlexArtist] = pmv.music.all()
     for artist in artists:
         print(artist.title)
@@ -353,7 +379,7 @@ def populate_db_from_mpd():
     music_library = pmv.settings['music_library']
     unknown_album = "[Unknown Album]"
 
-    session = _get_session()
+    session = get_session()
     client = PersistentMPDClient(host='localhost', port=6600)  # TODO Add mpd settings to config
 
     library_dict = {}
