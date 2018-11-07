@@ -4,7 +4,7 @@ import time
 from functools import wraps
 from logging import handlers
 from multiprocessing import Manager
-from os import path, symlink, makedirs
+from os import path, makedirs
 from urllib.parse import unquote
 from zipfile import ZipFile
 
@@ -12,8 +12,7 @@ from flask import Flask, render_template, send_file, redirect, url_for, flash, r
 from flask_login import LoginManager, login_required, login_user, logout_user
 from magic import Magic
 from musicbrainzngs import musicbrainz
-from plexapi.exceptions import NotFound
-from plexapi.library import Library, LibrarySection
+from plexapi.library import Library
 from plexapi.server import PlexServer
 from simplejson import dumps, load
 from werkzeug.local import LocalProxy
@@ -48,7 +47,6 @@ app.jinja_env.globals.update(get_additional_track_data=get_additional_track_data
 
 manager = Manager()
 _update_stack = manager.list()
-
 
 # def trigger_database_update():
 #     cache = db.get_cache()
@@ -192,20 +190,19 @@ def import_user() -> LocalProxy:
 
 
 def require_permission(permission: Permission,
-                       get_user: LocalProxy = import_user):  # TODO Require login here rather than on all functions
+                       get_user_func: LocalProxy = import_user):  # TODO Require login here rather than on all functions
     """
     Decorating a function with this ensures the current
     user has permission to load to page.
     :param permission:
-    :param permission_type:
-    :param get_user:
+    :param get_user_func:
     :return:
     """
 
     def permission_wrapper(func):
         @wraps(func)
         def permission_inner(*args, **kwargs):
-            user = get_user()
+            user = get_user_func()
             if user.has_permission(permission):
                 return func(*args, **kwargs)
             else:
@@ -347,7 +344,7 @@ def update_metadata(track_id: int):
     return str(track_id)  # TODO Write metadata updating (local, database, plex)
 
 
-# TODO URGENT - Rewrite search
+# TODO URGENT - Rewrite search (front + backend)
 # @app.route("/search", methods=['GET', 'POST'])
 # @app.route("/search/<query>", methods=['GET', 'POST'])
 # @login_required
@@ -442,20 +439,21 @@ def delete_user(username):
 
 @login_required
 @admin_required
-def delete_user_by_id(id: int, restore=False):
+def delete_user_by_id(key: int, restore=False):
     """
     Marks the user with the given ID as deleted.
     Does not actually delete the user from the database
     so that it is possible to restore them. This also
     allows for hard account suspension.
-    :param id: The user ID
+    :param key: The user ID
     :param restore: If this is set to True, undelete the user.
     :return:
     """
 
-    db.update('users', [db.Value('is_deleted', 0 if restore else 1)], [db.Value('user_id', id)])
+    session = db.get_session()
+    db.delete_user_by_id(session, key, restore)
 
-    message = "User with ID %r' successfully %s." % (id, "restored" if restore else 'deleted')
+    message = "User with ID %r' successfully %s." % (key, "restored" if restore else 'deleted')
     if request.method == 'POST':
         flash(message, category='success')
         return redirect(request.referrer)
@@ -465,35 +463,29 @@ def delete_user_by_id(id: int, restore=False):
 
 @login_required
 @admin_required
-def restore_user_by_id(id: int):
+def restore_user_by_id(key: int):
     """
     Alias for :func:`delete_user_by_id<app.delete_user_by_id>`.
-    Restore is passed as True of course.
+    Restore is passed as True.
     """
-    delete_user_by_id(id, True)
+    delete_user_by_id(key, True)
 
 
 # TODO URGENT - Rewrite this to be more dynamic - only update given values
-# @login_required
-# @admin_required
-# def edit_user_by_id(id: int):
-#     form = request.form
-#
-#     db.update('users', [
-#         db.Value('username', form.get('username')),
-#         db.Value('music_perms', form.get('music_perms')),
-#         db.Value('movie_perms', form.get('movie_perms')),
-#         db.Value('tv_perms', form.get('tv_perms')),
-#         db.Value('is_admin', form.get('is_admin'))
-#     ],
-#               [db.Value('user_id', id)])
-#
-#     message = "User with ID %r' successfully edited." % id
-#     if request.method == 'POST':
-#         flash(message, category='success')
-#         return redirect(request.referrer)
-#     else:
-#         return dumps({'message': message})
+@login_required
+@admin_required
+def edit_user_by_id(key: int):
+    form = request.form()
+
+    session = db.get_session()
+    db.edit_user_by_id(session, key, form)
+
+    message = "User with ID %r' successfully edited." % id
+    if request.method == 'POST':
+        flash(message, category='success')
+        return redirect(request.referrer)
+    else:
+        return dumps({'message': message})
 
 
 @app.route('/edit_user', methods=['POST'])
@@ -519,7 +511,7 @@ def edit_user(username=None):  # TODO Add editing by username
 @login_required
 @admin_required
 def admin():
-    return render_template('admin.html', title="Admin", users=get_users())
+    return render_template('admin.html', title="Admin", users=db.get_users(db.get_session()))
 
 
 @app.route('/torrent/<artist_name>/<album_name>', methods=['POST'])
@@ -536,19 +528,20 @@ def torrent(artist_name, album_name):
 @require_permission(Permission.music_can_download)
 def zip(album_id):
     # album = ph.get_album(artist_name, album_name)
-    album = ph.AlbumWrapper(row=db.get_album_by_key(album_id))
+    session = db.get_session()
+    album = db.get_album_by_id(session, album_id)
 
-    filename = "zips/%s/%s.zip" % (album.parentTitle, album.title)
+    filename = "zips/%s/%s.zip" % (album.artist_name, album.name)
     if not path.exists(path.dirname(filename)):
         makedirs(path.dirname(filename))
 
     if not path.isfile(filename):
         z = ZipFile(filename, 'w')
-        for track in album.tracks():
+        for track in album.tracks:
             z.write(unquote(track.downloadURL))
         z.close()
 
-    return send_file(filename, as_attachment=True, attachment_filename=album.title + '.zip')
+    return send_file(filename, as_attachment=True, attachment_filename=album.name + '.zip')
 
 
 @app.route('/image/<int:album_id>')
@@ -560,239 +553,237 @@ def image(album_id: int, width=None):
                                       width), mimetype='image/png')
 
 
-def get_parents(media, parents):
-    parent = media.parent()
-    if parent is not None:
-        # Add to front so we create nodes in
-        # The correct order.
-        parents.insert(0, parent)
-        get_parents(parent, parents)
-
-    return parents
-
-
-def do_recursive_db_update(media):
-    print("--", media.title, "--")
-    if media is None:
-        return
-
-    if type(media) == LibrarySection:
-        children = media.all()
-    else:
-        children = media.children()
-
-    if children is not None:
-        for child in children:
-            print(child.title)
-
-            child_type = ph.Type.get(child)
-            data = db.get_wrapper_as_values(child, child_type)
-            table = db.get_table_for(child_type)
-
-            if not db.get_one(table, conditions=data):
-                parent_nodes = get_parents(child, [])
-                print("^^", ', '.join(m.title for m in parent_nodes))
-
-                for node in parent_nodes:
-                    parent_type = ph.Type.get(node)
-                    parent_table = db.get_table_for(parent_type)
-                    if not db.get_one(parent_table, conditions=[db.Value('library_key', key_num(node.key))]):
-                        print(node.key)
-                        parent_data = db.get_wrapper_as_values(node, parent_type)
-                        db.insert_direct(parent_table, parent_data)
-
-                db.insert_direct(table, data, overwrite=True)
-
-    parent = media.parent()
-    if parent is not None:
-        do_recursive_db_update(parent)
-
-
-def do_database_update(names: dict = None, deep=False, drop_old=False):
-    """
-        Scans the Plex server for changes, and writes them
-        to the database.
-
-        :param names: A nested dictionary of artists, albums and tracks to update.
-        Leave empty to update the entire database.
-
-        :param deep: Scan every artist, album and track. By default the scanner
-        only scans objects where the parent has changed, meaning metadata edits
-        will not be picked up. New or albums and tracks will be detected.
-
-        :param drop_old: Delete the current contents of the database
-        and perform a complete refresh.
-
-        :return: Dictionary of changed media elements
-        """
-    # Return data
-    updated = {}
-
-    if drop_old:
-        db.delete('tracks')
-        db.delete('albums')
-        db.delete('artists')
-
-    if names:
-        artists = [ph.get_artist(name) for name in names.keys()]
-    else:
-        artists = ph.get_artists()
-
-    for artist in artists:
-        print(artist.title)
-        data = db.get_wrapper_as_values(artist, ph.Type.ARTIST)
-
-        scan_albums = False
-        if not db.get_one('artists', conditions=data):
-            db.insert_direct('artists', data, overwrite=True)
-            updated[artist.title] = {}
-            scan_albums = True
-
-        if scan_albums or deep:
-            if names:
-                albums = [ph.get_album(artist.title, album_name) for album_name in names.get(artist.title).keys()]
-            else:
-                albums = artist.albums()
-
-            for album in albums:
-                print("\t%s" % album.title)
-                data = db.get_wrapper_as_values(album, ph.Type.ALBUM)
-
-                scan_tracks = False
-                if not db.get_one('albums', conditions=data):
-                    db.insert_direct('albums', data, overwrite=True)
-                    updated[artist.title][album.title] = []
-                    scan_tracks = True
-
-                if scan_tracks or deep:
-                    if names:
-                        tracks = [ph.get_track(artist.title, album.title, track_name)
-                                  for track_name in names.get(artist.title).get(album.title)]
-                    else:
-                        tracks = album.tracks()
-
-                    for track in tracks:
-                        print("\t\t%s" % track.title)
-                        data = db.get_wrapper_as_values(track, ph.Type.TRACK)
-
-                        if not db.get_one('tracks', conditions=data):
-                            db.insert_direct('tracks', data, overwrite=True)
-                            updated[artist.title][album.title].append(track.title)
-
-    return dumps(updated)
-
-
-@app.route('/update_database/<int:deep>/<int:drop_old>', methods=['POST'])
-@app.route('/update_database/<int:deep>', methods=['POST'])
-@app.route('/update_database', methods=['POST'])
-@login_required
-@admin_required
-def update_database(names: dict = None, deep=0, drop_old=0):
-    return do_database_update(names, deep == 1, drop_old == 1)
-
-
-# TODO Tidy function
-@app.route('/updateSettings', methods=['POST'])
-@admin_required
-def setup():
-    """
-    Writes to the settings.json file with the
-    request form data. Also updates global settings
-    and Plex instances.
-    If settings are already set, or the request succeeds, the user
-    is forwarded to index.html.
-    If there is an invalid setting, the user is returned to setup.html
-    with a relevant message.
-    It will also attempt to create a symlink to the music library.
-    :return: Either index.html or setup.html depending on conditions.
-    """
-    global settings
-    global plex
-    global music
-
-    # If settings already set, do not allow overriding
-    if settings['serverToken']:
-        return render_template("index.html")
-
-    # Validate inputs and return to setup if any are invalid
-    try:
-        tmp = PlexServer(request.form['serverAddress'], request.form['serverToken'])
-        plex = tmp
-    except:
-        return render_template("setup.html", msg="Please check your address and/or token.")
-
-    try:
-        tmp = plex.library.section(request.form['librarySection'])
-        music = tmp
-    except:
-        return render_template("setup.html", msg="Please check your library section.")
-
-    # Update settings
-    settings['serverAddress'] = request.form['serverAddress']
-    settings['serverToken'] = request.form['serverToken']
-    settings['interfaceToken'] = request.form['interfaceToken']
-    settings['librarySection'] = request.form['librarySection']
-    settings['searchResults'] = {"artistResults": int(request.form['artistResults']),
-                                 "albumResults": int(request.form['albumResults']),
-                                 "trackResults": int(request.form['trackResults'])}
-
-    # Write new settings
-    with open('settings.json', 'w') as f:
-        f.write(dumps(settings, indent=4))
-
-    settings['musicLibrary'] = music.locations[0]
-
-    # Create symlink to music library
-    try:
-        if not path.islink('music'):
-            symlink(settings['musicLibrary'], 'music')
-    except:
-        return render_template("setup.html", msg="An error occurred creating a symlink to your music library."
-                                                 "Please check your web server file permissions.")
-
-    return render_template('index.html')
-
-
-def delete_entry(entry):
-    table = db.get_table_for(entry['type'])
-    db.delete(table, condition=db.Value('library_key', entry['library_key']))
-
-
-def process_update_stack(update_stack):  # TODO Fix updating when stack changes size during update
-    # print(update_stack)
-    for entry in update_stack:
-        # print(entry)
-        try:
-            item = ph.get_by_key(entry['library_key'])
-            do_recursive_db_update(ph.wrap(item))
-        except NotFound:
-            delete_entry(entry)
-
-    update_stack[:] = []
+# def get_parents(media, parents):
+#     parent = media.parent()
+#     if parent is not None:
+#         # Add to front so we create nodes in
+#         # The correct order.
+#         parents.insert(0, parent)
+#         get_parents(parent, parents)
+#
+#     return parents
+#
+#
+# def do_recursive_db_update(media):
+#     print("--", media.title, "--")
+#     if media is None:
+#         return
+#
+#     if type(media) == LibrarySection:
+#         children = media.all()
+#     else:
+#         children = media.children()
+#
+#     if children is not None:
+#         for child in children:
+#             print(child.title)
+#
+#             child_type = ph.Type.get(child)
+#             data = db.get_wrapper_as_values(child, child_type)
+#             table = db.get_table_for(child_type)
+#
+#             if not db.get_one(table, conditions=data):
+#                 parent_nodes = get_parents(child, [])
+#                 print("^^", ', '.join(m.title for m in parent_nodes))
+#
+#                 for node in parent_nodes:
+#                     parent_type = ph.Type.get(node)
+#                     parent_table = db.get_table_for(parent_type)
+#                     if not db.get_one(parent_table, conditions=[db.Value('library_key', key_num(node.key))]):
+#                         print(node.key)
+#                         parent_data = db.get_wrapper_as_values(node, parent_type)
+#                         db.insert_direct(parent_table, parent_data)
+#
+#                 db.insert_direct(table, data, overwrite=True)
+#
+#     parent = media.parent()
+#     if parent is not None:
+#         do_recursive_db_update(parent)
+#
+#
+# def do_database_update(names: dict = None, deep=False, drop_old=False):
+#     """
+#         Scans the Plex server for changes, and writes them
+#         to the database.
+#
+#         :param names: A nested dictionary of artists, albums and tracks to update.
+#         Leave empty to update the entire database.
+#
+#         :param deep: Scan every artist, album and track. By default the scanner
+#         only scans objects where the parent has changed, meaning metadata edits
+#         will not be picked up. New or albums and tracks will be detected.
+#
+#         :param drop_old: Delete the current contents of the database
+#         and perform a complete refresh.
+#
+#         :return: Dictionary of changed media elements
+#         """
+#     # Return data
+#     updated = {}
+#
+#     if drop_old:
+#         db.delete('tracks')
+#         db.delete('albums')
+#         db.delete('artists')
+#
+#     if names:
+#         artists = [ph.get_artist(name) for name in names.keys()]
+#     else:
+#         artists = ph.get_artists()
+#
+#     for artist in artists:
+#         print(artist.title)
+#         data = db.get_wrapper_as_values(artist, ph.Type.ARTIST)
+#
+#         scan_albums = False
+#         if not db.get_one('artists', conditions=data):
+#             db.insert_direct('artists', data, overwrite=True)
+#             updated[artist.title] = {}
+#             scan_albums = True
+#
+#         if scan_albums or deep:
+#             if names:
+#                 albums = [ph.get_album(artist.title, album_name) for album_name in names.get(artist.title).keys()]
+#             else:
+#                 albums = artist.albums()
+#
+#             for album in albums:
+#                 print("\t%s" % album.title)
+#                 data = db.get_wrapper_as_values(album, ph.Type.ALBUM)
+#
+#                 scan_tracks = False
+#                 if not db.get_one('albums', conditions=data):
+#                     db.insert_direct('albums', data, overwrite=True)
+#                     updated[artist.title][album.title] = []
+#                     scan_tracks = True
+#
+#                 if scan_tracks or deep:
+#                     if names:
+#                         tracks = [ph.get_track(artist.title, album.title, track_name)
+#                                   for track_name in names.get(artist.title).get(album.title)]
+#                     else:
+#                         tracks = album.tracks()
+#
+#                     for track in tracks:
+#                         print("\t\t%s" % track.title)
+#                         data = db.get_wrapper_as_values(track, ph.Type.TRACK)
+#
+#                         if not db.get_one('tracks', conditions=data):
+#                             db.insert_direct('tracks', data, overwrite=True)
+#                             updated[artist.title][album.title].append(track.title)
+#
+#     return dumps(updated)
+#
+#
+# @app.route('/update_database/<int:deep>/<int:drop_old>', methods=['POST'])
+# @app.route('/update_database/<int:deep>', methods=['POST'])
+# @app.route('/update_database', methods=['POST'])
+# @login_required
+# @admin_required
+# def update_database(names: dict = None, deep=0, drop_old=0):
+#     return do_database_update(names, deep == 1, drop_old == 1)
+#
+#
+# # TODO Tidy function
+# @app.route('/updateSettings', methods=['POST'])
+# @admin_required
+# def setup():
+#     """
+#     Writes to the settings.json file with the
+#     request form data. Also updates global settings
+#     and Plex instances.
+#     If settings are already set, or the request succeeds, the user
+#     is forwarded to index.html.
+#     If there is an invalid setting, the user is returned to setup.html
+#     with a relevant message.
+#     It will also attempt to create a symlink to the music library.
+#     :return: Either index.html or setup.html depending on conditions.
+#     """
+#     global settings
+#     global plex
+#     global music
+#
+#     # If settings already set, do not allow overriding
+#     if settings['serverToken']:
+#         return render_template("index.html")
+#
+#     # Validate inputs and return to setup if any are invalid
+#     try:
+#         tmp = PlexServer(request.form['serverAddress'], request.form['serverToken'])
+#         plex = tmp
+#     except:
+#         return render_template("setup.html", msg="Please check your address and/or token.")
+#
+#     try:
+#         tmp = plex.library.section(request.form['librarySection'])
+#         music = tmp
+#     except:
+#         return render_template("setup.html", msg="Please check your library section.")
+#
+#     # Update settings
+#     settings['serverAddress'] = request.form['serverAddress']
+#     settings['serverToken'] = request.form['serverToken']
+#     settings['interfaceToken'] = request.form['interfaceToken']
+#     settings['librarySection'] = request.form['librarySection']
+#     settings['searchResults'] = {"artistResults": int(request.form['artistResults']),
+#                                  "albumResults": int(request.form['albumResults']),
+#                                  "trackResults": int(request.form['trackResults'])}
+#
+#     # Write new settings
+#     with open('settings.json', 'w') as f:
+#         f.write(dumps(settings, indent=4))
+#
+#     settings['musicLibrary'] = music.locations[0]
+#
+#     # Create symlink to music library
+#     try:
+#         if not path.islink('music'):
+#             symlink(settings['musicLibrary'], 'music')
+#     except:
+#         return render_template("setup.html", msg="An error occurred creating a symlink to your music library."
+#                                                  "Please check your web server file permissions.")
+#
+#     return render_template('index.html')
+#
+#
+# def delete_entry(entry):
+#     table = db.get_table_for(entry['type'])
+#     db.delete(table, condition=db.Value('library_key', entry['library_key']))
+#
+#
+# def process_update_stack(update_stack):  # TODO Fix updating when stack changes size during update
+#     # print(update_stack)
+#     for entry in update_stack:
+#         # print(entry)
+#         try:
+#             item = ph.get_by_key(entry['library_key'])
+#             do_recursive_db_update(ph.wrap(item))
+#         except NotFound:
+#             delete_entry(entry)
+#
+#     update_stack[:] = []
 
 
 # --START OF PROGRAM--
 if __name__ == "__main__":
     scheduler = sched.scheduler(time.time)
 
-
-    def run_process_update_stack(update_stack):
-        try:
-            process_update_stack(update_stack)
-        finally:
-            scheduler.enter(10, 1, run_process_update_stack, (update_stack,))
-
-
-    def run_scheduler(update_stack):
-        run_process_update_stack(update_stack)
-        scheduler.run()
-
+    # def run_process_update_stack(update_stack):
+    #     try:
+    #         process_update_stack(update_stack)
+    #     finally:
+    #         scheduler.enter(10, 1, run_process_update_stack, (update_stack,))
+    #
+    #
+    # def run_scheduler(update_stack):
+    #     run_process_update_stack(update_stack)
+    #     scheduler.run()
 
     # flask = Process(target=app.run, args=(None, None, debug))
-    ### db_updater = Process(target=run_scheduler, args=(_update_stack,))
+    # db_updater = Process(target=run_scheduler, args=(_update_stack,))
 
     # flask.start()
-   ###  db_updater.start()
+    #  db_updater.start()
 
     db.init()
 
@@ -800,4 +791,4 @@ if __name__ == "__main__":
     # db_updater.join()
     app.run(debug=False)
 
-    ### db_updater.join()
+    # db_updater.join()
