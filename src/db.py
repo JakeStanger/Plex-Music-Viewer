@@ -1,24 +1,23 @@
-import json
 import operator
 import os
 from enum import Enum
 from functools import reduce
 from os import path
-from typing import List
+from timeit import default_timer as timer
+from typing import List, Union
 
+import mutagen
 from flask_login import UserMixin
+from plexapi.audio import Artist as PlexArtist, Album as PlexAlbum, Track as PlexTrack
+from plexapi.media import MediaPart, Media
 from sqlalchemy import create_engine, Column, Integer, String, SmallInteger, Boolean, BigInteger, Date, Text, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship, session as orm_session
 from sqlalchemy.orm.exc import NoResultFound
-from plexapi.audio import Artist as PlexArtist, Album as PlexAlbum, Track as PlexTrack
-from plexapi.media import MediaPart, Media
-import mutagen
 
 import helper
 import mpd_helper
 from PersistentMPDClient import PersistentMPDClient
-from timeit import default_timer as timer
 
 Base = declarative_base()
 
@@ -68,7 +67,7 @@ def init():
 
 
 class User(Base, UserMixin):
-    __tablename__ = 'users_test'
+    __tablename__ = 'users'
 
     id = Column(Integer, primary_key=True)
     username = Column(String(32), nullable=False)
@@ -116,7 +115,7 @@ class User(Base, UserMixin):
 
 
 class Artist(Base):
-    __tablename__ = 'artists_test'
+    __tablename__ = 'artists'
 
     id = Column(Integer, primary_key=True)
 
@@ -138,14 +137,14 @@ class Artist(Base):
 
 
 class Album(Base):
-    __tablename__ = 'albums_test'
+    __tablename__ = 'albums'
 
     id = Column(Integer, primary_key=True)
 
     name = Column(String(191), nullable=False)
     name_sort = Column(String(191))
 
-    artist_key = Column(Integer, ForeignKey('artists_test.id'))
+    artist_key = Column(Integer, ForeignKey('artists.id'))
     artist_name = Column(String(191))
 
     release_date = Column(Date)
@@ -171,17 +170,17 @@ class Album(Base):
 
 
 class Track(Base):
-    __tablename__ = 'tracks_test'
+    __tablename__ = 'tracks'
 
     id = Column(Integer, primary_key=True)
 
     name = Column(String(191), nullable=False)
     name_sort = Column(String(191))
 
-    artist_key = Column(Integer, ForeignKey('artists_test.id'))
+    artist_key = Column(Integer, ForeignKey('artists.id'))
     artist_name = Column(String(191))
 
-    album_key = Column(Integer, ForeignKey('albums_test.id'))
+    album_key = Column(Integer, ForeignKey('albums.id'))
     album_name = Column(String(191))
 
     duration = Column(BigInteger)
@@ -216,28 +215,52 @@ def add_single(obj):
     session.commit()
 
 
+def get_users(session):
+    return session.query(User).all()
+
+
 def add_user(username, password):
     add_single(User(username=username, password=password, api_key=helper.generate_secret_key()))
 
 
-def get_user(param: str) -> User:
+def get_user_by_id(session, key: int):
+    return session.query(User).filter_by(id=key)
+
+
+def get_user_by_username(session, username: str):
+    return session.query(User).filter_by(username=username).first()
+
+
+def edit_user_by_id(session, key: int, fields: dict):
+    user: User = get_user_by_id(session, key)
+    for key in fields:
+        setattr(user, key, fields[key])
+
+
+def get_user(param: Union[str, int], session=None) -> User:
     """
     Used by flask-login.
     Accepts username or user ID.
     """
-    session = get_session()
+    if not session:
+        session = get_session()
     try:
         if not param.isdigit():
-            return session.query(User).filter_by(username=param).one()
+            return get_user_by_username(session, param)
         else:
-            return session.query(User).filter_by(id=param).one()
+            return get_user_by_id(session, param)
     except NoResultFound as e:
         print(e)  # TODO Proper error handling
 
 
-def delete_user_by_username(session, username: str):
-    user: User = session.query(User).filter_by(username=username)
-    user.is_deleted = True
+def delete_user_by_id(session, key: int, restore=False):
+    user: User = get_user_by_id(session, key)
+    user.is_deleted = not restore
+
+
+def delete_user_by_username(session, username: str, restore=False):
+    user: User = get_user_by_username(session, username)
+    user.is_deleted = not restore
 
 
 def get_artists(session):
