@@ -1,5 +1,5 @@
 mutagen
-sqlalchemy
+flask-sqlalchemy
 pylast
 musicbrainzngs
 requests

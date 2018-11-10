@@ -1,5 +1,9 @@
 {% extends "layout.html" %}
 
+{% macro permission_string(delete, transcode, upload, edit, download, view) -%}
+    {{ 'D' if delete else '-' }}{{ 'T' if transcode else '-' }}{{ 'U' if upload else '-' }}{{ 'E' if edit else '-' }}{{ 'd' if download else '-' }}{{ 'V' if view else '-' }}
+{%- endmacro %}
+
 {% block head %}
     {#    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css')}}">#}
     <link href="https://cdnjs.cloudflare.com/ajax/libs/open-iconic/1.1.1/font/css/open-iconic-bootstrap.min.css"
@@ -22,23 +26,26 @@
         </tr>
         {% for user in users %}
             <tr>
-                {% for row in user %}
-                    <td>{{ row }}</td>
-                {% endfor %}
+                <td>{{ user.id }}</td>
+                <td>{{ user.username }}</td>
+                <td>{{ permission_string(user.music_can_delete, user.music_can_transcode, user.music_can_upload, user.music_can_edit, user.music_can_download, user.music_can_view) }}</td>
+                <td>{{ permission_string(user.movie_can_delete, user.movie_can_transcode, user.movie_can_upload, user.movie_can_edit, user.movie_can_download, user.movie_can_view) }}</td>
+                <td>{{ permission_string(user.tv_can_delete, user.tv_can_transcode, user.tv_can_upload, user.tv_can_edit, user.tv_can_download, user.tv_can_view) }}</td>
+                <td>{{ user.is_admin }}</td>
             </tr>
         {% endfor %}
         </tbody>
     </table>
-    <form class="form-inline my-2 my-lg-1 mr-1" action="{{ url_for('update_database') }}" method="post">
-        <button class="btn btn-outline-success my-sm-0" type="submit" disabled>Update Database</button>
-    </form>
-    <form class="form-inline my-2 my-lg-1 mr-1" action="{{ url_for('update_database', deep=1) }}" method="post">
-        <button class="btn btn-outline-success my-sm-0" type="submit" disabled>Deep Update Database</button>
-    </form>
-    <form class="form-inline my-2 my-lg-1 mr-1" action="{{ url_for('update_database', deep=1, drop_old=1) }}"
-          method="post">
-        <button class="btn btn-outline-success my-sm-0" type="submit" disabled>Recreate Database</button>
-    </form>
+{#    <form class="form-inline my-2 my-lg-1 mr-1" action="{{ url_for('update_database') }}" method="post">#}
+{#        <button class="btn btn-outline-success my-sm-0" type="submit" disabled>Update Database</button>#}
+{#    </form>#}
+{#    <form class="form-inline my-2 my-lg-1 mr-1" action="{{ url_for('update_database', deep=1) }}" method="post">#}
+{#        <button class="btn btn-outline-success my-sm-0" type="submit" disabled>Deep Update Database</button>#}
+{#    </form>#}
+{#    <form class="form-inline my-2 my-lg-1 mr-1" action="{{ url_for('update_database', deep=1, drop_old=1) }}"#}
+{#          method="post">#}
+{#        <button class="btn btn-outline-success my-sm-0" type="submit" disabled>Recreate Database</button>#}
+{#    </form>#}
 
 {% endblock %}
 
