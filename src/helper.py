@@ -1,4 +1,5 @@
 import math
+from _md5 import md5
 
 from flask import abort, Response
 
@@ -33,3 +34,29 @@ def format_duration(duration: int) -> str:
     minutes = math.floor(duration / 60000)
     seconds = math.floor((duration % 60000) / 1000)
     return str(minutes) + ":" + ('0' if seconds < 10 else '') + str(seconds)
+
+
+def get_sort_name(string: str) -> str:
+    to_remove = ['The', 'A']
+
+    for word in to_remove:
+        if string.startswith(word + ' '):
+            string = string[len(word + ' '):]
+
+    return string
+
+
+def get_numbers(value: str) -> int:
+    return int(value[:8], 16)
+
+
+def generate_artist_hash(name: str) -> int:
+    return get_numbers(md5(name.encode('utf8')).hexdigest())
+
+
+def generate_album_hash(name: str, artist: str) -> int:
+    return get_numbers(md5(('%s%s' % (name, artist)).encode('utf8')).hexdigest())
+
+
+def generate_track_hash(name: str, album: str, artist: str, full_path: str) -> int:
+    return get_numbers(md5(('%s%s%s%s' % (name, album, artist, full_path)).encode('utf8')).hexdigest())

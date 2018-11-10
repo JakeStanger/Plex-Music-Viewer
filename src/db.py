@@ -113,7 +113,7 @@ class Artist(db.Model):
     plex_id = db.Column(db.BigInteger, unique=True)
     plex_thumb = db.Column(db.BigInteger)
 
-    mpd_id = db.Column(db.BigInteger, unique=True)
+    hash = db.Column(db.BigInteger, unique=True)
 
     albums: list = db.relationship('Album', back_populates='artist')
     tracks: list = db.relationship('Track', back_populates='artist')
@@ -141,7 +141,7 @@ class Album(db.Model):
     plex_id = db.Column(db.BigInteger, unique=True)
     plex_thumb = db.Column(db.BigInteger)
 
-    mpd_id = db.Column(db.BigInteger, unique=True)
+    hash = db.Column(db.BigInteger, unique=True)
 
     artist = db.relationship('Artist', back_populates='albums')
 
@@ -181,7 +181,7 @@ class Track(db.Model):
 
     plex_id = db.Column(db.BigInteger, unique=True)
 
-    mpd_id = db.Column(db.BigInteger, unique=True)
+    hash = db.Column(db.BigInteger, unique=True)
 
     artist = db.relationship('Artist', back_populates='tracks')
     album = db.relationship('Album', back_populates='tracks')
@@ -200,6 +200,8 @@ def get_users():
 
 
 def add_user(username, password):
+    # TODO Look into why PyCharm is flagging this
+    # noinspection PyArgumentList
     add_single(User(username=username, password=password, api_key=helper.generate_secret_key()))
 
 
@@ -250,8 +252,8 @@ def get_artist_by_plex_key(plex_key: int) -> Artist:
     return db.session.query(Artist).filter_by(plex_id=plex_key).first()
 
 
-def get_artist_by_mpd_key(mpd_key: int) -> Artist:
-    return db.session.query(Artist).filter_by(mpd_id=mpd_key).first()
+def get_artist_by_hash(hash_key: int) -> Artist:
+    return db.session.query(Artist).filter_by(hash=hash_key).first()
 
 
 def get_artist_by_name(name: str) -> Artist:
@@ -266,8 +268,8 @@ def get_album_by_plex_key(plex_key: int) -> Album:
     return db.session.query(Album).filter_by(plex_id=plex_key).first()
 
 
-def get_album_by_mpd_key(mpd_key: int) -> Album:
-    return db.session.query(Album).filter_by(mpd_id=mpd_key).first()
+def get_album_by_hash(hash_key: int) -> Album:
+    return db.session.query(Album).filter_by(hash=hash_key).first()
 
 
 def get_album_by_name(artist_name: str, name: str) -> Album:
@@ -282,8 +284,8 @@ def get_track_by_plex_key(plex_key: int) -> Track:
     return db.session.query(Track).filter_by(plex_id=plex_key).first()
 
 
-def get_track_by_mpd_key(mpd_key: int) -> Track:
-    return db.session.query(Track).filter_by(mpd_id=mpd_key).first()
+def get_track_by_hash(hash_key: int) -> Track:
+    return db.session.query(Track).filter_by(hash=hash_key).first()
 
 
 def base_key(key: str) -> int:
@@ -307,7 +309,8 @@ def populate_db_from_plex():
                                   name_sort=artist.titleSort,
                                   album_count=len(albums),
                                   plex_id=artist_key,
-                                  plex_thumb=base_key(artist.thumb) if artist.thumb else None))
+                                  plex_thumb=base_key(artist.thumb) if artist.thumb else None,
+                                  hash=helper.generate_artist_hash(artist.title)))
             artist_query = get_artist_by_plex_key(artist_key)
         for album in albums:
             print('┣ ' + album.title)
@@ -324,7 +327,8 @@ def populate_db_from_plex():
                                      genres=','.join([genre.tag for genre in album.genres]),
                                      track_count=len(tracks),
                                      plex_id=album_key,
-                                     plex_thumb=base_key(album.thumb)))
+                                     plex_thumb=base_key(album.thumb),
+                                     hash=helper.generate_album_hash(album.title, artist.title)))
                 album_query = get_album_by_plex_key(album_key)
 
             for track in tracks:
@@ -348,7 +352,9 @@ def populate_db_from_plex():
                                          bitrate=media.bitrate,
                                          size=track_part.size,
                                          format=media.audioCodec,
-                                         plex_id=track_key))
+                                         plex_id=track_key,
+                                         hash=helper.generate_track_hash(
+                                             track.title, album.title, artist.title, track_part.file)))
 
     print("\nFinished constructing db.session in %r seconds" % round(timer() - start_time))
     print("Committing db.session.\n")
@@ -426,46 +432,46 @@ def populate_db_from_mpd():
     for artist in library_dict:
         print(artist)
         albums = library_dict[artist]
-        artist_id = mpd_helper.generate_artist_key(artist)
+        artist_hash = helper.generate_artist_hash(artist)
 
-        artist_query = get_artist_by_mpd_key(artist_id)
+        artist_query = get_artist_by_hash(artist_hash)
         if not artist_query:
             db.session.add(Artist(name=artist,
-                                  name_sort=mpd_helper.get_sort_name(artist),
+                                  name_sort=helper.get_sort_name(artist),
                                   album_count=len(albums),
-                                  mpd_id=artist_id))
-            artist_query = get_artist_by_mpd_key(artist_id)
+                                  hash=artist_hash))
+            artist_query = get_artist_by_hash(artist_hash)
 
         for album in albums:
             print('┣ ' + album)
             album_data = albums[album]
-            album_id = mpd_helper.generate_album_key(album, artist)
+            album_hash = helper.generate_album_hash(album, artist)
             tracks = album_data['songs']
 
-            album_query = get_album_by_mpd_key(album_id)
+            album_query = get_album_by_hash(album_hash)
             if not album_query:
                 genre_list = filter(lambda x: len(x) > 0, album_data['genres'])
                 db.session.add(Album(name=album,
-                                     name_sort=mpd_helper.get_sort_name(album),
+                                     name_sort=helper.get_sort_name(album),
                                      artist_key=artist_query.id,
                                      artist_name=artist,
                                      release_date=album_data['date'],
                                      genres=','.join([genre for genre in genre_list]),
                                      track_count=len(tracks),
-                                     mpd_id=album_id))
-                album_query = get_album_by_mpd_key(album_id)
+                                     hash=album_hash))
+                album_query = get_album_by_hash(album_hash)
 
             for track in tracks:
                 track_title = track['title']
                 print("┃ \t┣ " + track_title)
 
                 full_path = music_library + track['file']
-                track_key = mpd_helper.generate_track_key(track_title, album, artist, full_path)
+                track_hash = helper.generate_track_hash(track_title, album, artist, full_path)
 
-                track_query = get_track_by_mpd_key(track_key)
+                track_query = get_track_by_hash(track_hash)
                 if not track_query:
                     db.session.add(Track(name=track_title,
-                                         name_sort=mpd_helper.get_sort_name(track_title),
+                                         name_sort=helper.get_sort_name(track_title),
                                          artist_key=artist_query.id,
                                          artist_name=artist,
                                          album_key=album_query.id,
@@ -477,7 +483,7 @@ def populate_db_from_mpd():
                                          bitrate=mutagen.File(full_path).info.bitrate / 1000,  # Store bitrate in kbps
                                          size=os.path.getsize(full_path),
                                          format=full_path.rpartition('.')[-1].lower(),
-                                         mpd_id=track_key))
+                                         hash=track_hash))
 
     print("\nFinished constructing db.session in %r seconds" % round(timer() - start_time))
     print("Committing db.session.\n")
