@@ -17,7 +17,7 @@ def get_song_lyrics(track: Track) -> str:
     import pmv
 
     # Remove illegal characters (full stops get interpreted weirdly by lyricsgenius)
-    filename = get_lyrics_filename(artist_name, track_name)
+    filename = get_lyrics_filename(track)
 
     if os.path.exists(filename):
         with open(filename, 'rb') as f:
@@ -27,7 +27,7 @@ def get_song_lyrics(track: Track) -> str:
         g = genius.Genius(pmv.settings['genius_api'])
 
         try:
-            song = g.search_song(track_name, artist_name=artist_name)
+            song = g.search_song(track.name, artist_name=track.artist_name)
         except ConnectionError:
             return 'Failed to reach Genius.'
 
@@ -47,6 +47,6 @@ def update_lyrics(track: Track, lyrics: str):
     if not os.path.exists('lyrics'):
         os.makedirs('lyrics')
 
-    filename = get_lyrics_filename(artist_name, track_name)
+    filename = get_lyrics_filename(track)
     with open(filename, 'w') as f:
         f.write(lyrics)
