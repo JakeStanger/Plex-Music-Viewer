@@ -11,7 +11,6 @@ import scipy.cluster
 import scipy.misc
 from PIL import Image
 
-import pmv
 from db import Album
 
 
@@ -32,7 +31,7 @@ def _fetch_from_plex(album: Album) -> Optional[BytesIO]:
     :return: A BytesIO object of the image
     if one is found.
     """
-
+    import pmv
     # TODO return none if not using plex
 
     settings = pmv.settings
@@ -68,6 +67,7 @@ def _fetch_from_musicbrainz(album: Album, size) -> Optional[str]:
 
 
 def _fetch_from_lastfm(album: Album) -> Optional[BytesIO]:
+
     """
     Looks up the album on last.fm and fetches
     album art for it.
@@ -79,6 +79,7 @@ def _fetch_from_lastfm(album: Album) -> Optional[BytesIO]:
     :return: A BytesIO object of the image if
     one is found.
     """
+    import pmv
     settings = pmv.settings
     if not settings['lastfm_key']:
         return None
@@ -153,6 +154,7 @@ def read_image_from_disk(album: Album, width: int):
 
 
 def get_raw_image(album: Album, width: int=None) -> Image:
+    import pmv
     cached = read_image_from_disk(album, width)
     if cached:
         return cached
@@ -251,6 +253,7 @@ def get_text_colour(hex_code: str) -> str:
     :param hex_code: The background hex code, with or without the starting hash.
     :return: A light or dark colour with the starting hash.
     """
+    import pmv
     if hex_code.startswith('#'):
         hex_code = hex_code[1:]
 
