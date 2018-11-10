@@ -10,19 +10,23 @@ import mutagen
 from flask_login import UserMixin
 from plexapi.audio import Artist as PlexArtist, Album as PlexAlbum, Track as PlexTrack
 from plexapi.media import MediaPart, Media
-from sqlalchemy import create_engine, Column, Integer, String, SmallInteger, Boolean, BigInteger, Date, Text, ForeignKey
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, relationship, session as orm_session
-from sqlalchemy.orm.exc import NoResultFound
+from flask_sqlalchemy import SQLAlchemy
 
 import helper
 import mpd_helper
 from PersistentMPDClient import PersistentMPDClient
 
-Base = declarative_base()
+db: SQLAlchemy = SQLAlchemy()
 
-engine = None
-SessionMaker: sessionmaker = None
+
+def init(app):
+    with app.app_context():
+        db.init_app(app)
+        db.create_all()
+
+
+def session():
+    return db.session
 
 
 class Permission(Enum):
@@ -48,53 +52,38 @@ class Permission(Enum):
     tv_can_view = 17
 
 
-def init():
-    import pmv
-    print("Initialising database engine")  # TODO Add logger
-    global engine
-    global SessionMaker
-    engine = create_engine(pmv.settings['database'])
-
-    Base.metadata.create_all(engine)
-
-    SessionMaker = sessionmaker()
-    SessionMaker.configure(bind=engine)
-
-    print(get_album_by_name(SessionMaker(), "King Crimson", "Red").total_size())
-
-
-class User(Base, UserMixin):
+class User(db.Model, UserMixin):
     __tablename__ = 'users'
 
-    id = Column(Integer, primary_key=True)
-    username = Column(String(32), nullable=False)
-    password = Column(String(100), nullable=False)
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(32), nullable=False)
+    password = db.Column(db.String(100), nullable=False)
 
-    music_can_delete = Column(Boolean, default=False)
-    music_can_transcode = Column(Boolean, default=False)
-    music_can_upload = Column(Boolean, default=False)
-    music_can_edit = Column(Boolean, default=False)
-    music_can_download = Column(Boolean, default=False)
-    music_can_view = Column(Boolean, default=True)
+    music_can_delete = db.Column(db.Boolean, default=False)
+    music_can_transcode = db.Column(db.Boolean, default=False)
+    music_can_upload = db.Column(db.Boolean, default=False)
+    music_can_edit = db.Column(db.Boolean, default=False)
+    music_can_download = db.Column(db.Boolean, default=False)
+    music_can_view = db.Column(db.Boolean, default=True)
 
-    movie_can_delete = Column(Boolean, default=False)
-    movie_can_transcode = Column(Boolean, default=False)
-    movie_can_upload = Column(Boolean, default=False)
-    movie_can_edit = Column(Boolean, default=False)
-    movie_can_download = Column(Boolean, default=False)
-    movie_can_view = Column(Boolean, default=True)
+    movie_can_delete = db.Column(db.Boolean, default=False)
+    movie_can_transcode = db.Column(db.Boolean, default=False)
+    movie_can_upload = db.Column(db.Boolean, default=False)
+    movie_can_edit = db.Column(db.Boolean, default=False)
+    movie_can_download = db.Column(db.Boolean, default=False)
+    movie_can_view = db.Column(db.Boolean, default=True)
 
-    tv_can_delete = Column(Boolean, default=False)
-    tv_can_transcode = Column(Boolean, default=False)
-    tv_can_upload = Column(Boolean, default=False)
-    tv_can_edit = Column(Boolean, default=False)
-    tv_can_download = Column(Boolean, default=False)
-    tv_can_view = Column(Boolean, default=True)
+    tv_can_delete = db.Column(db.Boolean, default=False)
+    tv_can_transcode = db.Column(db.Boolean, default=False)
+    tv_can_upload = db.Column(db.Boolean, default=False)
+    tv_can_edit = db.Column(db.Boolean, default=False)
+    tv_can_download = db.Column(db.Boolean, default=False)
+    tv_can_view = db.Column(db.Boolean, default=True)
 
-    is_admin = Column(Boolean, default=False)
-    is_deleted = Column(Boolean, default=False)
+    is_admin = db.Column(db.Boolean, default=False)
+    is_deleted = db.Column(db.Boolean, default=False)
 
-    api_key = Column(String(64), nullable=True)
+    api_key = db.Column(db.String(64), nullable=True)
 
     authenticated = False
 
@@ -111,52 +100,52 @@ class User(Base, UserMixin):
         return getattr(self, permission.name)
 
 
-class Artist(Base):
+class Artist(db.Model):
     __tablename__ = 'artists'
 
-    id = Column(Integer, primary_key=True)
+    id = db.Column(db.Integer, primary_key=True)
 
-    name = Column(String(191), nullable=False)
-    name_sort = Column(String(191))
+    name = db.Column(db.String(191), nullable=False)
+    name_sort = db.Column(db.String(191))
 
-    album_count = Column(SmallInteger)
+    album_count = db.Column(db.SmallInteger)
 
-    plex_id = Column(BigInteger, unique=True)
-    plex_thumb = Column(BigInteger)
+    plex_id = db.Column(db.BigInteger, unique=True)
+    plex_thumb = db.Column(db.BigInteger)
 
-    mpd_id = Column(BigInteger, unique=True)
+    mpd_id = db.Column(db.BigInteger, unique=True)
 
-    albums: list = relationship('Album', back_populates='artist')
-    tracks: list = relationship('Track', back_populates='artist')
+    albums: list = db.relationship('Album', back_populates='artist')
+    tracks: list = db.relationship('Track', back_populates='artist')
 
     def __repr__(self):
         return "<%d - %s>" % (self.id, self.name)
 
 
-class Album(Base):
+class Album(db.Model):
     __tablename__ = 'albums'
 
-    id = Column(Integer, primary_key=True)
+    id = db.Column(db.Integer, primary_key=True)
 
-    name = Column(String(191), nullable=False)
-    name_sort = Column(String(191))
+    name = db.Column(db.String(191), nullable=False)
+    name_sort = db.Column(db.String(191))
 
-    artist_key = Column(Integer, ForeignKey('artists.id'))
-    artist_name = Column(String(191))
+    artist_key = db.Column(db.Integer, db.ForeignKey('artists.id'))
+    artist_name = db.Column(db.String(191))
 
-    release_date = Column(Date)
-    genres = Column(Text)
+    release_date = db.Column(db.Date)
+    genres = db.Column(db.Text)
 
-    track_count = Column(SmallInteger)
+    track_count = db.Column(db.SmallInteger)
 
-    plex_id = Column(BigInteger, unique=True)
-    plex_thumb = Column(BigInteger)
+    plex_id = db.Column(db.BigInteger, unique=True)
+    plex_thumb = db.Column(db.BigInteger)
 
-    mpd_id = Column(BigInteger, unique=True)
+    mpd_id = db.Column(db.BigInteger, unique=True)
 
-    artist = relationship('Artist', back_populates='albums')
+    artist = db.relationship('Artist', back_populates='albums')
 
-    tracks: list = relationship('Track', back_populates='album')
+    tracks: list = db.relationship('Track', back_populates='album')
 
     def __repr__(self):
         return "<%d - %s>" % (self.id, self.name)
@@ -166,146 +155,135 @@ class Album(Base):
         return reduce(operator.add, [track.size for track in self.tracks])
 
 
-class Track(Base):
+class Track(db.Model):
     __tablename__ = 'tracks'
 
-    id = Column(Integer, primary_key=True)
+    id = db.Column(db.Integer, primary_key=True)
 
-    name = Column(String(191), nullable=False)
-    name_sort = Column(String(191))
+    name = db.Column(db.String(191), nullable=False)
+    name_sort = db.Column(db.String(191))
 
-    artist_key = Column(Integer, ForeignKey('artists.id'))
-    artist_name = Column(String(191))
+    artist_key = db.Column(db.Integer, db.ForeignKey('artists.id'))
+    artist_name = db.Column(db.String(191))
 
-    album_key = Column(Integer, ForeignKey('albums.id'))
-    album_name = Column(String(191))
+    album_key = db.Column(db.Integer, db.ForeignKey('albums.id'))
+    album_name = db.Column(db.String(191))
 
-    duration = Column(BigInteger)
+    duration = db.Column(db.BigInteger)
 
-    track_num = Column(SmallInteger)
-    disc_num = Column(SmallInteger)
+    track_num = db.Column(db.SmallInteger)
+    disc_num = db.Column(db.SmallInteger)
 
-    download_url = Column(Text)
-    bitrate = Column(Integer)
-    size = Column(BigInteger)
-    format = Column(String(4))
+    download_url = db.Column(db.Text)
+    bitrate = db.Column(db.Integer)
+    size = db.Column(db.BigInteger)
+    format = db.Column(db.String(4))
 
-    plex_id = Column(BigInteger, unique=True)
+    plex_id = db.Column(db.BigInteger, unique=True)
 
-    mpd_id = Column(BigInteger, unique=True)
+    mpd_id = db.Column(db.BigInteger, unique=True)
 
-    artist = relationship('Artist', back_populates='tracks')
-    album = relationship('Album', back_populates='tracks')
+    artist = db.relationship('Artist', back_populates='tracks')
+    album = db.relationship('Album', back_populates='tracks')
 
     def __repr__(self):
         return "<%d - %s>" % (self.id, self.name)
 
 
-def get_session() -> orm_session:
-    global SessionMaker
-    return SessionMaker()
-
-
 def add_single(obj):
-    session = get_session()
-    session.add(obj)
-    session.commit()
+    db.session.add(obj)
+    db.session.commit()
 
 
-def get_users(session):
-    return session.query(User).all()
+def get_users():
+    return db.session.query(User).all()
 
 
 def add_user(username, password):
     add_single(User(username=username, password=password, api_key=helper.generate_secret_key()))
 
 
-def get_user_by_id(session, key: int):
-    return session.query(User).filter_by(id=key)
+def get_user_by_id(key: int):
+    return db.session.query(User).filter_by(id=key).first()
 
 
-def get_user_by_username(session, username: str):
-    return session.query(User).filter_by(username=username).first()
+def get_user_by_username(username: str):
+    return db.session.query(User).filter_by(username=username).first()
 
 
-def edit_user_by_id(session, key: int, fields: dict):
-    user: User = get_user_by_id(session, key)
+def edit_user_by_id(key: int, fields: dict):
+    user: User = get_user_by_id(key)
     for key in fields:
         setattr(user, key, fields[key])
 
 
-def get_user(param: Union[str, int], session=None) -> User:
+def get_user(param: Union[str, int]) -> User:
     """
     Used by flask-login.
     Accepts username or user ID.
     """
-    if not session:
-        session = get_session()
-    try:
-        if not param.isdigit():
-            return get_user_by_username(session, param)
-        else:
-            return get_user_by_id(session, param)
-    except NoResultFound as e:
-        print(e)  # TODO Proper error handling
+    if not param.isdigit():
+        return get_user_by_username(param)
+    else:
+        return get_user_by_id(param)
 
 
-def delete_user_by_id(session, key: int, restore=False):
-    user: User = get_user_by_id(session, key)
+def delete_user_by_id(key: int, restore=False):
+    user: User = get_user_by_id(key)
     user.is_deleted = not restore
 
 
-def delete_user_by_username(session, username: str, restore=False):
-    user: User = get_user_by_username(session, username)
+def delete_user_by_username(username: str, restore=False):
+    user: User = get_user_by_username(username)
     user.is_deleted = not restore
 
 
-def get_artists(session):
-    return session.query(Artist).all()
+def get_artists():
+    return db.session.query(Artist).all()
 
 
-def get_artist_by_id(session, key: int) -> Artist:
-    return session.query(Artist).filter_by(id=key).first()
+def get_artist_by_id(key: int) -> Artist:
+    return db.session.query(Artist).filter_by(id=key).first()
 
 
-def get_artist_by_plex_key(session, plex_key: int) -> Artist:
-    return session.query(Artist).filter_by(plex_id=plex_key).first()
+def get_artist_by_plex_key(plex_key: int) -> Artist:
+    return db.session.query(Artist).filter_by(plex_id=plex_key).first()
 
 
-def get_artist_by_mpd_key(session, mpd_key: int) -> Artist:
-    return session.query(Artist).filter_by(mpd_id=mpd_key).first()
+def get_artist_by_mpd_key(mpd_key: int) -> Artist:
+    return db.session.query(Artist).filter_by(mpd_id=mpd_key).first()
 
 
-def get_artist_by_name(session, name: str) -> Artist:
-    return session.query(Artist).filter_by(name=name).first()
+def get_artist_by_name(name: str) -> Artist:
+    return db.session.query(Artist).filter_by(name=name).first()
 
 
-def get_album_by_id(session, key: int) -> Album:
-    return session.query(Album).filter_by(id=key).first()
+def get_album_by_id(key: int) -> Album:
+    return db.session.query(Album).filter_by(id=key).first()
 
 
-def get_album_by_plex_key(session, plex_key: int) -> Album:
-    return session.query(Album).filter_by(plex_id=plex_key).first()
+def get_album_by_plex_key(plex_key: int) -> Album:
+    return db.session.query(Album).filter_by(plex_id=plex_key).first()
 
 
-def get_album_by_mpd_key(session, mpd_key: int) -> Album:
-    return session.query(Album).filter_by(mpd_id=mpd_key).first()
+def get_album_by_mpd_key(mpd_key: int) -> Album:
+    return db.session.query(Album).filter_by(mpd_id=mpd_key).first()
 
 
-def get_album_by_name(session, artist_name: str, name: str) -> Album:
-    return session.query(Album).filter_by(name=name, artist_name=artist_name).first()
+def get_album_by_name(artist_name: str, name: str) -> Album:
+    return db.session.query(Album).filter_by(name=name, artist_name=artist_name).first()
 
 
-def get_track_by_id(session, key: int) -> Track:
-    return session.query(Track).filter_by(plex_id=key).first()
+def get_track_by_id(key: int) -> Track:
+    return db.session.query(Track).filter_by(plex_id=key).first()
 
 
-def get_track_by_plex_key(session, plex_key: int) -> Track:
-    return session.query(Track).filter_by(plex_id=plex_key).first()
+def get_track_by_plex_key(plex_key: int) -> Track:
+    return db.session.query(Track).filter_by(plex_id=plex_key).first()
 
 
-def get_track_by_mpd_key(session, mpd_key: int) -> Track:
-    return session.query(Track).filter_by(mpd_id=mpd_key).first()
+def get_track_by_mpd_key(mpd_key: int) -> Track:
+    return db.session.query(Track).filter_by(mpd_id=mpd_key).first()
 
 
 def base_key(key: str) -> int:
@@ -317,65 +295,64 @@ def populate_db_from_plex():
 
     start_time = timer()
 
-    session = get_session()
     artists: List[PlexArtist] = pmv.music.all()
     for artist in artists:
         print(artist.title)
         artist_key = base_key(artist.key)
         albums: List[PlexAlbum] = artist.albums()
 
-        artist_query = get_artist_by_plex_key(session, artist_key)
+        artist_query = get_artist_by_plex_key(artist_key)
         if not artist_query:
-            session.add(Artist(name=artist.title,
-                               name_sort=artist.titleSort,
-                               album_count=len(albums),
-                               plex_id=artist_key,
-                               plex_thumb=base_key(artist.thumb) if artist.thumb else None))
-            artist_query = get_artist_by_plex_key(session, artist_key)
+            db.session.add(Artist(name=artist.title,
+                                  name_sort=artist.titleSort,
+                                  album_count=len(albums),
+                                  plex_id=artist_key,
+                                  plex_thumb=base_key(artist.thumb) if artist.thumb else None))
+            artist_query = get_artist_by_plex_key(artist_key)
         for album in albums:
             print('┣ ' + album.title)
             album_key = base_key(album.key)
             tracks: List[PlexTrack] = album.tracks()
 
-            album_query = get_album_by_plex_key(session, album_key)
+            album_query = get_album_by_plex_key(album_key)
             if not album_query:
-                session.add(Album(name=album.title,
-                                  name_sort=album.titleSort,
-                                  artist_key=artist_query.id,
-                                  artist_name=artist.title,
-                                  release_date=album.year,
-                                  genres=','.join([genre.tag for genre in album.genres]),
-                                  track_count=len(tracks),
-                                  plex_id=album_key,
-                                  plex_thumb=base_key(album.thumb)))
-                album_query = get_album_by_plex_key(session, album_key)
+                db.session.add(Album(name=album.title,
+                                     name_sort=album.titleSort,
+                                     artist_key=artist_query.id,
+                                     artist_name=artist.title,
+                                     release_date=album.year,
+                                     genres=','.join([genre.tag for genre in album.genres]),
+                                     track_count=len(tracks),
+                                     plex_id=album_key,
+                                     plex_thumb=base_key(album.thumb)))
+                album_query = get_album_by_plex_key(album_key)
 
             for track in tracks:
                 print("┃ \t┣ " + track.title)
                 track_key = base_key(track.key)
-                track_query = get_track_by_plex_key(session, artist_key)
+                track_query = get_track_by_plex_key(artist_key)
                 if not track_query:
                     media: Media = track.media[0]
                     track_part: MediaPart = [*track.iterParts()][0]
 
-                    session.add(Track(name=track.title,
-                                      name_sort=track.titleSort,
-                                      artist_key=artist_query.id,
-                                      artist_name=artist.title,
-                                      album_key=album_query.id,
-                                      album_name=album.title,
-                                      duration=track.duration,
-                                      track_num=track.index,
-                                      disc_num=track.parentIndex,
-                                      download_url=track_part.file,
-                                      bitrate=media.bitrate,
-                                      size=track_part.size,
-                                      format=media.audioCodec,
-                                      plex_id=track_key))
+                    db.session.add(Track(name=track.title,
+                                         name_sort=track.titleSort,
+                                         artist_key=artist_query.id,
+                                         artist_name=artist.title,
+                                         album_key=album_query.id,
+                                         album_name=album.title,
+                                         duration=track.duration,
+                                         track_num=track.index,
+                                         disc_num=track.parentIndex,
+                                         download_url=track_part.file,
+                                         bitrate=media.bitrate,
+                                         size=track_part.size,
+                                         format=media.audioCodec,
+                                         plex_id=track_key))
 
-    print("\nFinished constructing session in %r seconds" % round(timer() - start_time))
-    print("Committing session.\n")
-    session.commit()
+    print("\nFinished constructing db.session in %r seconds" % round(timer() - start_time))
+    print("Committing db.session.\n")
+    db.session.commit()
 
 
 def _get_mpd_key(data, key):
@@ -399,7 +376,6 @@ def populate_db_from_mpd():
     music_library = pmv.settings['music_library']
     unknown_album = "[Unknown Album]"
 
-    session = get_session()
     client = PersistentMPDClient(host='localhost', port=6600)  # TODO Add mpd settings to config
 
     library_dict = {}
@@ -452,13 +428,13 @@ def populate_db_from_mpd():
         albums = library_dict[artist]
         artist_id = mpd_helper.generate_artist_key(artist)
 
-        artist_query = get_artist_by_mpd_key(session, artist_id)
+        artist_query = get_artist_by_mpd_key(artist_id)
         if not artist_query:
-            session.add(Artist(name=artist,
-                               name_sort=mpd_helper.get_sort_name(artist),
-                               album_count=len(albums),
-                               mpd_id=artist_id))
-            artist_query = get_artist_by_mpd_key(session, artist_id)
+            db.session.add(Artist(name=artist,
+                                  name_sort=mpd_helper.get_sort_name(artist),
+                                  album_count=len(albums),
+                                  mpd_id=artist_id))
+            artist_query = get_artist_by_mpd_key(artist_id)
 
         for album in albums:
             print('┣ ' + album)
@@ -466,18 +442,18 @@ def populate_db_from_mpd():
             album_id = mpd_helper.generate_album_key(album, artist)
             tracks = album_data['songs']
 
-            album_query = get_album_by_mpd_key(session, album_id)
+            album_query = get_album_by_mpd_key(album_id)
             if not album_query:
                 genre_list = filter(lambda x: len(x) > 0, album_data['genres'])
-                session.add(Album(name=album,
-                                  name_sort=mpd_helper.get_sort_name(album),
-                                  artist_key=artist_query.id,
-                                  artist_name=artist,
-                                  release_date=album_data['date'],
-                                  genres=','.join([genre for genre in genre_list]),
-                                  track_count=len(tracks),
-                                  mpd_id=album_id))
-                album_query = get_album_by_mpd_key(session, album_id)
+                db.session.add(Album(name=album,
+                                     name_sort=mpd_helper.get_sort_name(album),
+                                     artist_key=artist_query.id,
+                                     artist_name=artist,
+                                     release_date=album_data['date'],
+                                     genres=','.join([genre for genre in genre_list]),
+                                     track_count=len(tracks),
+                                     mpd_id=album_id))
+                album_query = get_album_by_mpd_key(album_id)
 
             for track in tracks:
                 track_title = track['title']
@@ -486,23 +462,23 @@ def populate_db_from_mpd():
                 full_path = music_library + track['file']
                 track_key = mpd_helper.generate_track_key(track_title, album, artist, full_path)
 
-                track_query = get_track_by_mpd_key(session, track_key)
+                track_query = get_track_by_mpd_key(track_key)
                 if not track_query:
-                    session.add(Track(name=track_title,
-                                      name_sort=mpd_helper.get_sort_name(track_title),
-                                      artist_key=artist_query.id,
-                                      artist_name=artist,
-                                      album_key=album_query.id,
-                                      album_name=album,
-                                      duration=track['duration'] * 1000,  # Store time in ms
-                                      track_num=track['track'],
-                                      disc_num=track['disc'],
-                                      download_url=full_path,
-                                      bitrate=mutagen.File(full_path).info.bitrate / 1000,  # Store bitrate in kbps
-                                      size=os.path.getsize(full_path),
-                                      format=full_path.rpartition('.')[-1].lower(),
-                                      mpd_id=track_key))
+                    db.session.add(Track(name=track_title,
+                                         name_sort=mpd_helper.get_sort_name(track_title),
+                                         artist_key=artist_query.id,
+                                         artist_name=artist,
+                                         album_key=album_query.id,
+                                         album_name=album,
+                                         duration=track['duration'] * 1000,  # Store time in ms
+                                         track_num=track['track'],
+                                         disc_num=track['disc'],
+                                         download_url=full_path,
+                                         bitrate=mutagen.File(full_path).info.bitrate / 1000,  # Store bitrate in kbps
+                                         size=os.path.getsize(full_path),
+                                         format=full_path.rpartition('.')[-1].lower(),
+                                         mpd_id=track_key))
 
-    print("\nFinished constructing session in %r seconds" % round(timer() - start_time))
-    print("Committing session.\n")
-    session.commit()
+    print("\nFinished constructing db.session in %r seconds" % round(timer() - start_time))
+    print("Committing db.session.\n")
+    db.session.commit()

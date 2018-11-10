@@ -16,14 +16,10 @@ from plexapi.library import Library
 from plexapi.server import PlexServer
 from simplejson import dumps, load
 from werkzeug.local import LocalProxy
-from werkzeug.security import check_password_hash
+from werkzeug.security import check_password_hash, generate_password_hash
 
 import db
 import defaults
-import helper
-import lyrics
-import images
-from db import Permission
 from helper import *
 
 logger = logging.getLogger(__name__)
@@ -43,9 +39,16 @@ app = Flask(__name__)  # TODO Implement logging throughout application
 app.url_map.strict_slashes = False
 
 app.jinja_env.globals.update(int=int)
-app.jinja_env.globals.update(format_duration=helper.format_duration)
-app.jinja_env.globals.update(format_size=helper.format_size)
-app.jinja_env.globals.update(lyrics=lyrics.get_song_lyrics)
+app.jinja_env.globals.update(format_duration=format_duration)
+app.jinja_env.globals.update(format_size=format_size)
+
+
+def get_song_lyrics(track):
+    import lyrics
+    return lyrics.get_song_lyrics(track)
+
+
+app.jinja_env.globals.update(lyrics=get_song_lyrics)
 
 manager = Manager()
 _update_stack = manager.list()
@@ -105,11 +108,10 @@ except FileNotFoundError:
 
 # logger.setLevel(settings['log_level'])  # TODO Set log level from settings
 
-logger.debug("Setting MySQL database settings.")
-app.config['MYSQL_DATABASE_USER'] = settings['database']['user']
-app.config['MYSQL_DATABASE_PASSWORD'] = settings['database']['password']
-app.config['MYSQL_DATABASE_DB'] = settings['database']['database']
-app.config['MYSQL_DATABASE_HOST'] = settings['database']['hostname']
+logger.debug('Creating database engine')
+app.config['SQLALCHEMY_DATABASE_URI'] = settings['database']
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+db.init(app)
 
 app.config.update(SECRET_KEY=settings['secret_key'])
 
@@ -122,7 +124,6 @@ if settings['serverToken'] and False:
     logger.debug("Starting plex alert listener.")
     # plex.startAlertListener(listen)  # TODO Fix alert listener
 
-# db.init()  # TODO Replace with flask-sqlalchemy
 
 # Login manager configuration
 logger.debug("Creating login manager.")
@@ -181,11 +182,11 @@ def import_user() -> LocalProxy:
             'Flask-Login.current_user could not be imported.')
 
 
-def require_permission(permission: Permission,
+def require_permission(permission: db.Permission,
                        get_user_func: LocalProxy = import_user):  # TODO Require login here rather than on all functions
     """
     Decorating a function with this ensures the current
-    user has permission to load to page.
+    user has db.Permission to load to page.
     :param permission:
     :param get_user_func:
     :return:
@@ -245,7 +246,7 @@ def admin_required(func, get_user=import_user):
 
 @app.route('/error')
 def error():
-    return render_template('error.html', code=str(402), message="You do not have permission to view this page.")
+    return render_template('error.html', code=str(402), message="You do not have db.Permission to view this page.")
 
 
 @app.route('/')
@@ -256,17 +257,16 @@ def index():
 @app.route('/artist')
 @app.route("/artist/<int:artist_id>")
 @login_required
-@require_permission(Permission.music_can_view)
+@require_permission(db.Permission.music_can_view)
 def artist(artist_id: int = None):
-    session = db.get_session()
     if artist_id:
-        artist = db.get_artist_by_id(session, artist_id)
+        artist = db.get_artist_by_id(artist_id)
         albums = artist.albums
         albums.sort(key=lambda x: x.year, reverse=True)
 
         return render_template('table.html', albums=albums, title=artist.name)
     else:
-        artists = db.get_artists(session)
+        artists = db.get_artists()
         artists.sort(key=lambda x: x.titleSort)
 
         return render_template('table.html', artists=artists, title="Artists")
@@ -274,10 +274,9 @@ def artist(artist_id: int = None):
 
 @app.route("/album/<int:album_id>")
 @login_required
-@require_permission(Permission.music_can_view)
+@require_permission(db.Permission.music_can_view)
 def album(album_id: int):
-    session = db.get_session()
-    album = db.get_album_by_id(session, album_id)
+    album = db.get_album_by_id(album_id)
     tracks = album.tracks
     tracks = sorted(tracks, key=lambda x: (x.parentIndex, x.index))
 
@@ -287,8 +286,9 @@ def album(album_id: int):
 
 @app.route("/track/<int:track_id>")
 def track(track_id: int):
-    session = db.get_session()
-    track = db.get_track_by_id(track_id, session)
+    import images
+    import lyrics
+    track = db.get_track_by_id(track_id)
 
     banner_colour = images.get_predominant_colour(track.album)
     text_colour = images.get_text_colour(banner_colour)
@@ -300,10 +300,9 @@ def track(track_id: int):
 @app.route("/track_file/<int:track_id>")
 @app.route("/track_file/<int:track_id>/<download>")
 @login_required
-@require_permission(Permission.music_can_view)
+@require_permission(db.Permission.music_can_view)
 def track_file(track_id: int, download=False):
-    session = db.get_session()
-    track = db.get_track_by_id(session, track_id)
+    track = db.get_track_by_id(track_id)
 
     decoded = unquote(track.download_url)
 
@@ -316,49 +315,49 @@ def track_file(track_id: int, download=False):
 
 @app.route('/edit_lyrics/<int:track_id>', methods=['POST'])
 @login_required
-@require_permission(Permission.music_can_edit)
+@require_permission(db.Permission.music_can_edit)
 def edit_lyrics(track_id: int):
-    session = db.get_session()
-    current_track = db.get_track_by_id(session, track_id)
+    import lyrics
+    current_track = db.get_track_by_id(track_id)
 
     lyrics.update_lyrics(current_track, request.form.get('lyrics'))
 
     flash('Lyrics successfully updated', category='success')
-
     return redirect(url_for('track', track_id=track_id))
 
 
 @app.route('/edit_metadata/<int:track_id>', methods=['POST'])
 @login_required
-@require_permission(Permission.music_can_edit)
+@require_permission(db.Permission.music_can_edit)
 def update_metadata(track_id: int):
     print(request.form)
     return str(track_id)  # TODO Write metadata updating (local, database, plex)
 
 
 # TODO URGENT - Rewrite search (front + backend)
-# @app.route("/search", methods=['GET', 'POST'])
-# @app.route("/search/<query>", methods=['GET', 'POST'])
-# @login_required
-# @require_permission(Permission.music_can_view)
-# def search(query=None, for_artists=True, for_albums=True, for_tracks=True):
-#     if not query:
-#         query = request.form.get('query')
-#
-#     if for_artists:
-#         artists = music.search(query, libtype="artist", maxresults=settings['searchResults']['artistResults'])
-#         artists = [ph.ArtistWrapper(artist) for artist in artists]
-#
-#     if for_albums:
-#         albums = music.search(query, libtype="album", maxresults=settings['searchResults']['albumResults'])
-#         albums = [ph.AlbumWrapper(album) for album in albums]
-#
-#     if for_tracks:
-#         tracks = music.search(query, libtype="track", maxresults=settings['searchResults']['trackResults'])
-#         tracks = [ph.TrackWrapper(track) for track in tracks]
-#
-#     return render_template('table.html', artists=artists, albums=albums, tracks=tracks, title=query,
-#                            is_search=True, prev=request.referrer)
+@app.route("/search", methods=['GET', 'POST'])
+@app.route("/search/<query>", methods=['GET', 'POST'])
+@login_required
+@require_permission(db.Permission.music_can_view)
+def search(query=None, for_artists=True, for_albums=True, for_tracks=True):
+    return "SEARCH NOT IMPLEMENTED"
+    # if not query:
+    #     query = request.form.get('query')
+    #
+    # if for_artists:
+    #     artists = music.search(query, libtype="artist", maxresults=settings['searchResults']['artistResults'])
+    #     artists = [ph.ArtistWrapper(artist) for artist in artists]
+    #
+    # if for_albums:
+    #     albums = music.search(query, libtype="album", maxresults=settings['searchResults']['albumResults'])
+    #     albums = [ph.AlbumWrapper(album) for album in albums]
+    #
+    # if for_tracks:
+    #     tracks = music.search(query, libtype="track", maxresults=settings['searchResults']['trackResults'])
+    #     tracks = [ph.TrackWrapper(track) for track in tracks]
+    #
+    # return render_template('table.html', artists=artists, albums=albums, tracks=tracks, title=query,
+    #                        is_search=True, prev=request.referrer)
 
 
 @login_manager.user_loader
@@ -396,7 +395,7 @@ def sign_up():
     password = request.form['password']
     remember = request.form.get('remember') is not None
 
-    db.add_user(username, password)
+    db.add_user(username, generate_password_hash(password))
     # TODO Add some proper validation, redirecting for signup
     # if len(data) == 0:
     user = get_user(username)
@@ -417,9 +416,8 @@ def logout():
 @login_required
 @admin_required
 def delete_user(username):
-    session = db.get_session()
-    db.delete_user_by_username(session, username)
-    session.commit()
+    db.delete_user_by_username(username)
+    db.session().commit()
 
     if request.method == 'POST':
         flash("User '%s' successfully deleted." % username, category='success')
@@ -441,9 +439,7 @@ def delete_user_by_id(key: int, restore=False):
     :param restore: If this is set to True, undelete the user.
     :return:
     """
-
-    session = db.get_session()
-    db.delete_user_by_id(session, key, restore)
+    db.delete_user_by_id(key, restore)
 
     message = "User with ID %r' successfully %s." % (key, "restored" if restore else 'deleted')
     if request.method == 'POST':
@@ -469,8 +465,7 @@ def restore_user_by_id(key: int):
 def edit_user_by_id(key: int):
     form = request.form()
 
-    session = db.get_session()
-    db.edit_user_by_id(session, key, form)
+    db.edit_user_by_id(key, form)
 
     message = "User with ID %r' successfully edited." % id
     if request.method == 'POST':
@@ -503,12 +498,12 @@ def edit_user(username=None):  # TODO Add editing by username
 @login_required
 @admin_required
 def admin():
-    return render_template('admin.html', title="Admin", users=db.get_users(db.get_session()))
+    return render_template('admin.html', title="Admin", users=db.get_users())
 
 
 @app.route('/torrent/<artist_name>/<album_name>', methods=['POST'])
 @login_required
-@require_permission(Permission.music_can_download)
+@require_permission(db.Permission.music_can_download)
 def torrent(artist_name, album_name):
     torrent_path = "torrents/" + artist_name + "/" + album_name + ".torrent"
 
@@ -517,11 +512,11 @@ def torrent(artist_name, album_name):
 
 @app.route('/zip/<int:album_id>', methods=['POST'])
 @login_required
-@require_permission(Permission.music_can_download)
+@require_permission(db.Permission.music_can_download)
 def zip(album_id):
     # album = ph.get_album(artist_name, album_name)
-    session = db.get_session()
-    album = db.get_album_by_id(session, album_id)
+
+    album = db.get_album_by_id(album_id)
 
     filename = "zips/%s/%s.zip" % (album.artist_name, album.name)
     if not path.exists(path.dirname(filename)):
@@ -539,9 +534,10 @@ def zip(album_id):
 @app.route('/image/<int:album_id>')
 @app.route('/image/<int:album_id>/<width>')
 # @login_required
-# @require_permission(PermissionType.MUSIC, Permission.VIEW)
+# @require_permission(db.PermissionType.MUSIC, db.Permission.VIEW)
 def image(album_id: int, width=None):
-    return send_file(images.get_image(db.get_album_by_id(db.get_session(), album_id),
+    import images
+    return send_file(images.get_image(db.get_album_by_id(album_id),
                                       width), mimetype='image/png')
 
 
@@ -733,7 +729,7 @@ def image(album_id: int, width=None):
 #             symlink(settings['musicLibrary'], 'music')
 #     except:
 #         return render_template("setup.html", msg="An error occurred creating a symlink to your music library."
-#                                                  "Please check your web server file permissions.")
+#                                                  "Please check your web server file db.Permissions.")
 #
 #     return render_template('index.html')
 #
@@ -776,8 +772,6 @@ if __name__ == "__main__":
 
     # flask.start()
     #  db_updater.start()
-
-    db.init()
 
     # flask.join()
     # db_updater.join()

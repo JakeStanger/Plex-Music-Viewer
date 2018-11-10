@@ -1,19 +1,18 @@
 import os
 import lyricsgenius as genius
-
-from db import Track
+import db
 
 
 def encode_string(string: str) -> str:
     return string.replace(".", "").replace("/", "-")
 
 
-def get_lyrics_filename(track: Track) -> str:
+def get_lyrics_filename(track: db.Track) -> str:
     return 'lyrics/%s - %s.txt' % (encode_string(track.artist_name),
                                    encode_string(track.name))
 
 
-def get_song_lyrics(track: Track) -> str:
+def get_song_lyrics(track: db.Track) -> str:
     import pmv
 
     # Remove illegal characters (full stops get interpreted weirdly by lyricsgenius)
@@ -43,7 +42,7 @@ def get_song_lyrics(track: Track) -> str:
         return 'Genius API key not set.'
 
 
-def update_lyrics(track: Track, lyrics: str):
+def update_lyrics(track: db.Track, lyrics: str):
     if not os.path.exists('lyrics'):
         os.makedirs('lyrics')
 
