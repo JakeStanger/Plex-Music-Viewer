@@ -13,13 +13,7 @@ default_settings = {
     },
     "serverToken": "",
     "music_library": "",  # TODO Make sure this always ends in a /
-    "database": {
-        "user": "",
-        "password": "",
-        "database": "",
-        "hostname": "localhost",
-        "port": 3306
-    },
+    "database": "mysql://user:password@localhost:3306/MyDatabase",
     "secret_key": helper.generate_secret_key(),
     "genius_api": "",
     "colors": {

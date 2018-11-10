@@ -7,7 +7,7 @@ REQUEST_DATA = "?checkFiles=1&includeExtras=1&X-Plex-Token="
 
 
 def get_additional_track_data(track_key: str):
-    print("WARNING - Using get_additional_track_data, a deprecated function")
+    print("WARNING! - Using get_additional_track_data, a deprecated function")
     """
     Fetches the track bitrate, codec, size_formatted,
     and download location from XML.

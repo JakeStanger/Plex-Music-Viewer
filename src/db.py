@@ -53,10 +53,7 @@ def init():
     print("Initialising database engine")  # TODO Add logger
     global engine
     global SessionMaker
-    db_settings = pmv.settings['database']
-    engine = create_engine('mysql://%s:%s@%s:%s/%s'
-                           % (db_settings['user'], db_settings['password'],
-                              db_settings['hostname'], db_settings['port'], db_settings['database']))
+    engine = create_engine(pmv.settings['database'])
 
     Base.metadata.create_all(engine)
 
