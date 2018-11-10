@@ -155,6 +155,11 @@ class Album(db.Model):
         return reduce(operator.add, [track.size for track in self.tracks])
 
 
+playlist_track = db.Table('playlist_track', db.metadata,
+                          db.Column('track_id', db.ForeignKey('tracks.id'), primary_key=True),
+                          db.Column('playlist_id', db.ForeignKey('playlists.id'), primary_key=True))
+
+
 class Track(db.Model):
     __tablename__ = 'tracks'
 
@@ -186,8 +191,18 @@ class Track(db.Model):
     artist = db.relationship('Artist', back_populates='tracks')
     album = db.relationship('Album', back_populates='tracks')
 
+    playlists = db.relationship('Playlist', secondary=playlist_track, back_populates='tracks')
+
     def __repr__(self):
         return "<%d - %s>" % (self.id, self.name)
+
+
+class Playlist(db.Model):
+    __tablename__ = "playlists"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(191), nullable=False)
+    tracks = db .relationship('Track', secondary=playlist_track, back_populates='playlists')
 
 
 def add_single(obj):
