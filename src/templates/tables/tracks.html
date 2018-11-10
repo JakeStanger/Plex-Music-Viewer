@@ -42,13 +42,13 @@
     {% set discs = [0] %}
     {% for track in tracks %}
         {% if not is_search %}
-            {% if int(last.parentIndex) > 1 and int(track.parentIndex) != int(discs|last) %}
+            {% if int(last.parentIndex) > 1 and int(track.disc_num) != int(discs|last) %}
                 <tr class='discrow'>
                     <td><h6>
-                        <b>Disc {{ track.parentIndex }}</b>
+                        <b>Disc {{ track.disc_num }}</b>
                     </h6></td>
                 </tr>
-                {% if discs.append(track.parentIndex) %}{% endif %}
+                {% if discs.append(track.disc_num) %}{% endif %}
             {% endif %}
             <tr>
         {% endif %}
@@ -57,22 +57,22 @@
             {{ track.index }}
         </div>
         <div class="btn-group" role="group">
-            <button class="btn btn-link" onclick="play(`{{ url_for('track_file', track_id=key_num(track.key)) }}`);">
-                <span id="play-{{ key_num(track.key) }}"
+            <button class="btn btn-link" onclick="play(`{{ url_for('track_file', track_id=track.id) }}`);">
+                <span id="play-{{ track.id }}"
                       class="oi oi-media-play"></span></button>
-            <a class="btn btn-link" href="{{ url_for('track_file', track_id=key_num(track.key), download='download') }}">
+            <a class="btn btn-link" href="{{ url_for('track_file', track_id=track.id, download='download') }}">
                 <span class="oi oi-data-transfer-download"></span></a>
         </div>
 
     </td>
-    <td><a href="{{ url_for('track', track_id=key_num(track.key)) }}">{{ track.title }}</a></td>
-    <td>{{ track.duration_formatted() }}</td>
+    <td><a href="{{ url_for('track', track_id=track.id) }}">{{ track.name }}</a></td>
+    <td>{{ format_duration(track.duration) }}</td>
     <td>{{ track.bitrate }}kbps</td>
     <td>{{ track.format }}</td>
-    <td>{{ track.size_formatted() }}</td>
+    <td>{{ format_size(track.size) }}</td>
     {% if is_search %}
-        <td><a href="{{ url_for('album', album_id=key_num(track.parentKey)) }}">{{ track.parentTitle }}</a></td>
-        <td><a href="{{ url_for('artist', artist_id=key_num(track.grandparentKey)) }}">{{ track.grandparentTitle }}</a>
+        <td><a href="{{ url_for('album', album_id=key_num(track.album_key)) }}">{{ track.album_title }}</a></td>
+        <td><a href="{{ url_for('artist', artist_id=key_num(track.artist_key)) }}">{{ track.artist_title }}</a>
         </td>
     {% endif %}
     </tr>

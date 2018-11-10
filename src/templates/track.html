@@ -16,8 +16,8 @@
                     <img src="{{ url_for('image', album_id=track.album_key, width=200) }}">
                 </div>
                 <div class="col-12 col-md-9 col-lg-6">
-                    <h1 class="display-4">{{ track.index }} - {{ track.title }}</h1>
-                    <p class="lead">{{ track.grandparentTitle }} - {{ track.parentTitle }}</p>
+                    <h1 class="display-4">{{ track.index }} - {{ track.name }}</h1>
+                    <p class="lead">{{ track.artist_name }} - {{ track.album_name }}</p>
                 </div>
                 <div class="col-12 col-lg-3">
                     <button class="btn btn-round">
@@ -33,11 +33,11 @@
         <ol class="breadcrumb">
             <li class="breadcrumb-item"><a href="{{ url_for('artist') }}">Artists</a></li>
             <li class="breadcrumb-item"><a
-                    href="{{ url_for('artist', artist_id=track.grandparentKey) }}">{{ track.grandparentTitle }}</a></li>
+                    href="{{ url_for('artist', artist_id=track.artist_key) }}">{{ track.artist_name }}</a></li>
             <li class="breadcrumb-item"><a
-                    href="{{ url_for('album', artist_id=track.grandparentKey, album_id=track.parentKey) }}">{{ track.parentTitle }}</a>
+                    href="{{ url_for('album', album_id=track.album_key) }}">{{ track.album_name }}</a>
             </li>
-            <li class="breadcrumb-item active" aria-current="page">{{ track.title }}</li>
+            <li class="breadcrumb-item active" aria-current="page">{{ track.name }}</li>
         </ol>
     </nav>
     <h2>Lyrics
@@ -46,7 +46,7 @@
         </button>
     </h2>
     <p>
-        {% for line in lyrics %}
+        {% for line in lyrics(track) %}
             {{ line }}<br>
         {% endfor %}
     </p>
@@ -56,27 +56,27 @@
         <tbody>
         <tr>
             <td><b>Title</b></td>
-            <td>{{ track.title }}</td>
+            <td>{{ track.name }}</td>
         </tr>
         <tr>
             <td><b>Sort Title</b></td>
-            <td>{{ track.titleSort }}</td>
+            <td>{{ track.name_sort }}</td>
         </tr>
         <tr>
             <td><b>Artist</b></td>
-            <td>{{ track.grandparentTitle }}</td>
+            <td>{{ track.artist_name }}</td>
         </tr>
         <tr>
             <td><b>Album</b></td>
-            <td>{{ track.parentTitle }}</td>
+            <td>{{ track.album_name }}</td>
         </tr>
         <tr>
             <td><b>Track Number</b></td>
-            <td>{{ track.index }}</td>
+            <td>{{ track.track_num }}</td>
         </tr>
         <tr>
             <td><b>Disc Number</b></td>
-            <td>{{ track.parentIndex }}</td>
+            <td>{{ track.disc_num }}</td>
         </tr>
         </tbody>
     </table>
@@ -112,7 +112,7 @@
     <script src="{{ url_for('static', filename='js/jquery.tabledit.min.js') }}"></script>
     <script>
         $('#metadata_table').Tabledit({
-            url: "{{ url_for('update_metadata', track_id=track.key) }}",
+            url: "{{ url_for('update_metadata', track_id=track.id) }}",
             editButton: false,
             deleteButton: false,
             columns: {

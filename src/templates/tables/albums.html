@@ -18,11 +18,11 @@
         </tr>
         {% for album in albums %}
             <tr>
-                <td><a href="{{ url_for('album', album_id=key_num(album.key)) }}">{{ album.title }}</a></td>
+                <td><a href="{{ url_for('album', album_id=album.id) }}">{{ album.name }}</a></td>
                 <td>{{ album.year }}</td>
                 <td>{{ album.num_tracks }}</td>
                 {% if is_search %}
-                    <td><a href="{{ url_for('artist', artist_key=key_num(album.parentKey)) }}">{{ album.parentTitle }}</a></td>
+                    <td><a href="{{ url_for('artist', artist_key=album.artist_key) }}">{{ album.artist_name }}</a></td>
                 {% endif %}
             </tr>
         {% endfor %}
