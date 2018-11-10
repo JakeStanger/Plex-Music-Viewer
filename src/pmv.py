@@ -20,11 +20,11 @@ from werkzeug.security import check_password_hash
 
 import db
 import defaults
+import helper
 import lyrics
 import images
 from db import Permission
 from helper import *
-from plex_api_extras import get_additional_track_data
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -43,7 +43,9 @@ app = Flask(__name__)  # TODO Implement logging throughout application
 app.url_map.strict_slashes = False
 
 app.jinja_env.globals.update(int=int)
-app.jinja_env.globals.update(get_additional_track_data=get_additional_track_data)
+app.jinja_env.globals.update(format_duration=helper.format_duration)
+app.jinja_env.globals.update(format_size=helper.format_size)
+app.jinja_env.globals.update(lyrics=lyrics.get_song_lyrics)
 
 manager = Manager()
 _update_stack = manager.list()
@@ -111,7 +113,7 @@ app.config['MYSQL_DATABASE_HOST'] = settings['database']['hostname']
 
 app.config.update(SECRET_KEY=settings['secret_key'])
 
-if settings['serverToken']:
+if settings['serverToken'] and False:
     logger.info("Using Plex backend.")
     plex = PlexServer(settings['serverAddress'], settings['serverToken'])
     music = plex.library.section(settings['librarySection'])
@@ -146,16 +148,6 @@ def get_settings() -> dict:
 def get_music() -> Library:
     global music
     return music
-
-
-def key_num(key):
-    if not isinstance(key, int):
-        return int(path.basename(key))
-    else:
-        return key
-
-
-app.jinja_env.globals.update(key_num=key_num)
 
 
 @app.errorhandler(404)
@@ -421,7 +413,7 @@ def logout():
     return redirect(url_for('index'))
 
 
-@app.route('/delete_user/<str:username>', methods=['POST', 'DELETE'])
+@app.route('/delete_user/<string:username>', methods=['POST', 'DELETE'])
 @login_required
 @admin_required
 def delete_user(username):
