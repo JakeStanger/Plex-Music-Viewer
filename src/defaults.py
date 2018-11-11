@@ -3,27 +3,65 @@ from json import dumps
 import helper
 
 default_settings = {
-    "librarySection": "Music",
-    "serverAddress": "http://localhost:32400",
-    "interfaceToken": "",
-    "searchResults": {
-        "artistResults": 10,
-        "albumResults": 10,
-        "trackResults": 20
+    "backends": {
+        "plex": {
+            "enable": False,
+            "server_address": "http://localhost:32400",
+            "server_token": "",
+            "music_library_section": "Music",
+            "movies_library_section": "Movies",
+            "tv_library_section": "Television",
+            "search_results": {
+                "music": {
+                    "artist": 10,
+                    "album": 10,
+                    "track": 20
+                }
+            }
+        },
+        "mpd": {
+            "enable": False,
+            "hostname": "localhost",
+            "port": 6600
+        }
     },
-    "serverToken": "",
     "music_library": "",  # TODO Make sure this always ends in a /
-    "database": "mysql://user:password@localhost:3306/MyDatabase",
-    "secret_key": helper.generate_secret_key(),
+    "database": "sqlite:///pmv.db",
     "genius_api": "",
     "colors": {
-        "textDark": "#111111",
-        "textLight": "#ffffff"
+        "text_dark": "#111111",
+        "text_light": "#ffffff"
     },
-    "newUserPerms": [0, 0, 0],
+    "default_permissions": {
+        "music": {
+            "delete": False,
+            "transcode": False,
+            "upload": False,
+            "edit": False,
+            "download": False,
+            "view": True
+        },
+        "movies": {
+            "delete": False,
+            "transcode": False,
+            "upload": False,
+            "edit": False,
+            "download": False,
+            "view": True
+        },
+        "tv": {
+            "delete": False,
+            "transcode": False,
+            "upload": False,
+            "edit": False,
+            "download": False,
+            "view": True
+        }
+    },
     "lastfm_key": "",
     "album_art_fetchers": ['plex', 'musicbrainz', 'lastfm', 'local'],
-    "log_level": "INFO"
+    "log_level": "INFO",
+    "secret_key": helper.generate_secret_key()
 }
 
 
