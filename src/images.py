@@ -9,11 +9,11 @@ import pylast as pl
 import scipy
 import scipy.cluster
 import scipy.misc
-import db
 from PIL import Image
+from database.models import Album
 
 
-def get_image_path(album: db.Album, size: int) -> str:
+def get_image_path(album: Album, size: int) -> str:
     return 'images/%s_%r.jpg' % (album.id, size)
 
 
@@ -21,7 +21,7 @@ def _get_url_as_bytesio(url: str) -> BytesIO:
     return BytesIO(urlopen(url).read())
 
 
-def _fetch_from_plex(album: db.Album) -> Optional[BytesIO]:
+def _fetch_from_plex(album: Album) -> Optional[BytesIO]:
     """
     Queries the Plex server using the ID
     and fetches the set thumbnail for the item.
@@ -43,7 +43,7 @@ def _fetch_from_plex(album: db.Album) -> Optional[BytesIO]:
     return _get_url_as_bytesio(url)
 
 
-def _fetch_from_musicbrainz(album: db.Album, size) -> Optional[str]:
+def _fetch_from_musicbrainz(album: Album, size) -> Optional[str]:
     """
     Looks up the album and artist on musicbrainz and
     fetches the front cover album art for it.
@@ -65,7 +65,7 @@ def _fetch_from_musicbrainz(album: db.Album, size) -> Optional[str]:
     return filename
 
 
-def _fetch_from_lastfm(album: db.Album) -> Optional[BytesIO]:
+def _fetch_from_lastfm(album: Album) -> Optional[BytesIO]:
 
     """
     Looks up the album on last.fm and fetches
@@ -97,7 +97,7 @@ def _fetch_from_lastfm(album: db.Album) -> Optional[BytesIO]:
     return _get_url_as_bytesio(url)
 
 
-def _fetch_from_local(album: db.Album) -> Optional[str]:
+def _fetch_from_local(album: Album) -> Optional[str]:
     """
     Looks for images in the album directory.
     Checks each track in case they are in separated directories.
@@ -128,7 +128,7 @@ def _fetch_from_local(album: db.Album) -> Optional[str]:
     return None
 
 
-def save_image_to_disk(album: db.Album, image: Image, width: int):
+def save_image_to_disk(album: Album, image: Image, width: int):
     """
     Writes the given image to disk using
     its friendly ID as the filename.
@@ -144,7 +144,7 @@ def save_image_to_disk(album: db.Album, image: Image, width: int):
     image.save(get_image_path(album, width), str(width), 'PNG', quality=90)
 
 
-def read_image_from_disk(album: db.Album, width: int):
+def read_image_from_disk(album: Album, width: int):
     try:
 
         return Image.open(get_image_path(album, width), str(width))
@@ -152,7 +152,7 @@ def read_image_from_disk(album: db.Album, width: int):
         return None
 
 
-def get_raw_image(album: db.Album, width: int=None) -> Image:
+def get_raw_image(album: Album, width: int=None) -> Image:
     import pmv
     cached = read_image_from_disk(album, width)
     if cached:
@@ -181,7 +181,7 @@ def get_raw_image(album: db.Album, width: int=None) -> Image:
     #     app.throw_error(400, "invalid thumb-id")
 
 
-def get_image(album: db.Album, width: Optional[int]=None) -> BytesIO:
+def get_image(album: Album, width: Optional[int]=None) -> BytesIO:
     image = get_raw_image(album, width)
     tmp_image = BytesIO()
     image.save(tmp_image, 'PNG', quality=90)
@@ -190,7 +190,7 @@ def get_image(album: db.Album, width: Optional[int]=None) -> BytesIO:
     return tmp_image
 
 
-def get_predominant_colour(album: db.Album) -> str:
+def get_predominant_colour(album: Album) -> str:
     """
     Gets the most predominant colour in an image.
 

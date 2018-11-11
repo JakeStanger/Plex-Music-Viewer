@@ -18,7 +18,7 @@ from simplejson import dumps, load
 from werkzeug.local import LocalProxy
 from werkzeug.security import check_password_hash, generate_password_hash
 
-import db
+import database as db
 import defaults
 from helper import *
 
