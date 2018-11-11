@@ -1,15 +1,13 @@
 import math
+import string
 from _md5 import md5
+import secrets
 
 from flask import abort, Response
 
 
 def generate_secret_key(length=64):
-    from base64 import b64encode
-    from os import urandom
-
-    random_bytes = urandom(length)
-    return b64encode(random_bytes).decode('utf-8')
+    return ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(length))
 
 
 def throw_error(num: int, error):
