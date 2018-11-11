@@ -463,11 +463,13 @@ def restore_user_by_id(key: int):
 @login_required
 @admin_required
 def edit_user_by_id(key: int):
-    form = request.form()
+    form = request.form
 
     db.edit_user_by_id(key, form)
 
-    message = "User with ID %r' successfully edited." % id
+    db.session().commit()
+
+    message = "User with ID %r' successfully edited." % key
     if request.method == 'POST':
         flash(message, category='success')
         return redirect(request.referrer)

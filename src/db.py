@@ -231,7 +231,25 @@ def get_user_by_username(username: str):
 def edit_user_by_id(key: int, fields: dict):
     user: User = get_user_by_id(key)
     for key in fields:
-        setattr(user, key, fields[key])
+        if key == 'id' or key == 'action':
+            continue
+
+        value = fields[key]
+
+        if '_perms' in key and isinstance(value, str):
+            start = 0
+            if key == 'movie_perms':
+                start = 6
+            elif key == 'tv_perms':
+                start = 12
+
+            for i in range(start, start+6):
+                setattr(user, Permission(i).name, value[i-start] != '-')
+
+        if key == 'is_admin' and isinstance(value, str):
+            value = value == 'True'  # Any string passed other than 'True' should never be interpreted as true
+
+        setattr(user, key, value)
 
 
 def get_user(param: Union[str, int]) -> User:
