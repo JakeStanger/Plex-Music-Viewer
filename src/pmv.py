@@ -36,6 +36,7 @@ logger.info("Creating Flask object.")
 # Flask configuration
 app = Flask(__name__)  # TODO Implement logging throughout application
 
+
 app.url_map.strict_slashes = False
 
 app.jinja_env.globals.update(int=int)
@@ -307,6 +308,13 @@ def track_file(track_id: int, download=False):
                      as_attachment=download, attachment_filename='%s.%s' % (track.name, track.format))
 
 
+@app.route('/playlists')
+@login_required
+@require_permission(db.Permission.music_can_view)
+def playlists():
+    return render_template('playlists.html')
+
+
 @app.route('/edit_lyrics/<int:track_id>', methods=['POST'])
 @login_required
 @require_permission(db.Permission.music_can_edit)
@@ -404,6 +412,12 @@ def sign_up():
 def logout():
     logout_user()
     return redirect(url_for('index'))
+
+
+@app.route('/profile')
+@login_required
+def profile():
+    return render_template('profile.html')
 
 
 @app.route('/delete_user/<string:username>', methods=['POST', 'DELETE'])
