@@ -85,6 +85,10 @@ class User(db.Model, UserMixin):
 
     api_key = db.Column(db.String(64), nullable=True)
 
+    lastfm_username = db.Column(db.String(16), nullable=True)
+
+    playlists = db.relationship('Playlist', back_populates='user')
+
     authenticated = False
 
     def __repr__(self):
@@ -202,6 +206,7 @@ class Playlist(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(191), nullable=False)
+    creator = db.relationship('User', back_populates='playlists')
     tracks = db .relationship('Track', secondary=playlist_track, back_populates='playlists')
 
 
