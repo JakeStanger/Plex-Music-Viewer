@@ -20,7 +20,7 @@
     {% endif %}
 
     {% if not (artists or albums or tracks) %}
-        <h1>No results {% if is_search %}for <i>{{ title }}</i>{% endif %}. <a href="{{ prev or '/' }}">Back</a>.</h1>
+        <p>No results {% if is_search %}for <i>{{ title }}</i>{% endif %}. <a href="{{ prev or '/' }}">Back</a>.</p>
     {% endif %}
 {% endblock %}
 
