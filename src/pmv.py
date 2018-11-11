@@ -1,3 +1,4 @@
+import base64
 import logging
 import sched
 import time
@@ -222,21 +223,29 @@ def admin_required(func, get_user=import_user):
     return admin_wrapper
 
 
-# # Support login via API
-# @login_manager.request_loader # TODO play with this function
-# def request_loader(req):
-#     username = req.form.get('username')
-#     password = req.form.get('password')
-#     #username = 'Test'
-#     #password = '1234'
-#     print(username)
-#     print(password)
-#     user = get_user(username)
-#     print("THIS IS A REQUEST")
-#     print("THIS IS A REQUEST")
-#     print(user.username)
-#     user.set_authenticated(check_password_hash(user.hashed_password, password))
-#     return user
+# Support login via API
+@login_manager.request_loader
+def request_loader(req):
+    # Attempt login via URL arg
+    api_key = req.args.get('api_key')
+    if api_key:
+        user = db.get_user_by_api_key(api_key)
+        if user:
+            return user
+
+    # Attempt login via header parameter
+    api_key = req.headers.get('Authorization')
+    if api_key:
+        api_key = api_key.replace('Basic ', '', 1)
+        try:
+            api_key = base64.b64decode(api_key)
+        except TypeError:
+            pass
+        user = db.get_user_by_api_key(api_key)
+        if user:
+            return user
+
+    return None
 
 
 @app.route('/error')
