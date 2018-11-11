@@ -87,7 +87,7 @@ class User(db.Model, UserMixin):
 
     lastfm_username = db.Column(db.String(16), nullable=True)
 
-    playlists = db.relationship('Playlist', back_populates='user')
+    playlists = db.relationship('Playlist', back_populates='creator')
 
     authenticated = False
 
@@ -206,6 +206,9 @@ class Playlist(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(191), nullable=False)
+
+    creator_id = db.Column(db.Integer, db.ForeignKey('users.id'))
+
     creator = db.relationship('User', back_populates='playlists')
     tracks = db .relationship('Track', secondary=playlist_track, back_populates='playlists')
 
