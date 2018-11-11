@@ -26,6 +26,10 @@ def get_user_by_id(key: int):
     return db.session.query(User).filter_by(id=key).first()
 
 
+def get_user_by_api_key(api_key: str):
+    return db.session.query(User).filter_by(api_key=api_key).first()
+
+
 def get_user_by_username(username: str):
     return db.session.query(User).filter_by(username=username).first()
 
