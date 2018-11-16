@@ -39,7 +39,7 @@ def populate_db_from_plex():
         artist_key = base_key(artist.key)
         albums: List[PlexAlbum] = artist.albums()
 
-        artist_query = get_artist_by_plex_key(artist_key)
+        artist_query = get_artist_by_hash(artist_key)
         if not artist_query:
             db.session.add(Artist(name=artist.title,
                                   name_sort=artist.titleSort,
@@ -47,13 +47,13 @@ def populate_db_from_plex():
                                   plex_id=artist_key,
                                   plex_thumb=base_key(artist.thumb) if artist.thumb else None,
                                   hash=helper.generate_artist_hash(artist.title)))
-            artist_query = get_artist_by_plex_key(artist_key)
+            artist_query = get_artist_by_hash(artist_key)
         for album in albums:
             print('┣ ' + album.title)
             album_key = base_key(album.key)
             tracks: List[PlexTrack] = album.tracks()
 
-            album_query = get_album_by_plex_key(album_key)
+            album_query = get_album_by_hash(album_key)
             if not album_query:
                 db.session.add(Album(name=album.title,
                                      name_sort=album.titleSort,
@@ -65,12 +65,12 @@ def populate_db_from_plex():
                                      plex_id=album_key,
                                      plex_thumb=base_key(album.thumb),
                                      hash=helper.generate_album_hash(album.title, artist.title)))
-                album_query = get_album_by_plex_key(album_key)
+                album_query = get_album_by_hash(album_key)
 
             for track in tracks:
                 print("┃ \t┣ " + track.title)
                 track_key = base_key(track.key)
-                track_query = get_track_by_plex_key(artist_key)
+                track_query = get_track_by_hash(artist_key)
                 if not track_query:
                     media: Media = track.media[0]
                     track_part: MediaPart = [*track.iterParts()][0]
