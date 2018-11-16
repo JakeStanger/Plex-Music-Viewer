@@ -7,8 +7,8 @@ import sys
 # Load settings
 settings = load(open('settings.json'))
 
-if settings['serverToken']:
-    plex = PlexServer(settings['serverAddress'], settings['serverToken'])
+if settings['plex']['server_token']:
+    plex = PlexServer(settings['plex']['server_address'], settings['plex']['server_token'])
     music = plex.library.section(settings['librarySection'])
     settings['musicLibrary'] = music.locations[0]
 else:

@@ -1,6 +1,7 @@
 import base64
 import logging
 import sched
+import sys
 import time
 from functools import wraps
 from logging import handlers
@@ -21,6 +22,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 import database as db
 import defaults
+import argparse
 from helper import *
 
 logger = logging.getLogger(__name__)
@@ -117,9 +119,9 @@ db.init(app)
 
 app.config.update(SECRET_KEY=settings['secret_key'])
 
-if settings['serverToken'] and False:
+if settings['plex']['server_token'] and False:
     logger.info("Using Plex backend.")
-    plex = PlexServer(settings['serverAddress'], settings['serverToken'])
+    plex = PlexServer(settings['plex']['server_address'], settings['plex']['server_token'])
     music = plex.library.section(settings['librarySection'])
     settings['musicLibrary'] = music.locations[0]
 
@@ -559,7 +561,6 @@ def image(album_id: int, width=None):
     return send_file(images.get_image(db.get_album_by_id(album_id),
                                       width), mimetype='image/png')
 
-
 # def delete_entry(entry):
 #     table = db.get_table_for(entry['type'])
 #     db.delete(table, condition=db.Value('library_key', entry['library_key']))
@@ -581,6 +582,17 @@ def image(album_id: int, width=None):
 # --START OF PROGRAM--
 if __name__ == "__main__":
     scheduler = sched.scheduler(time.time)
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-u', '--update', action='store_true', help='Update the database and exit')
+
+    args = parser.parse_args()
+
+    if args.update:
+        if settings['plex']['enable']:
+            db.populate_db_from_plex()
+        if settings['mpd']['enable']:
+            db.populate_db_from_mpd()
+        sys.exit()
 
     # def run_process_update_stack(update_stack):
     #     try:

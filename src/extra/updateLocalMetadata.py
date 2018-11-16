@@ -7,8 +7,8 @@ from json import load
 # Load settings
 settings = load(open('settings.json'))
 
-if settings['serverToken']:
-    plex = PlexServer(settings['serverAddress'], settings['serverToken'])
+if settings['plex']['server_token']:
+    plex = PlexServer(settings['plex']['server_address'], settings['plex']['server_token'])
     music = plex.library.section(settings['librarySection'])
     settings['musicLibrary'] = music.locations[0]
 else:
@@ -32,7 +32,7 @@ for artist in artists:
         print("-- (" + str(j) + "/" + str(numAlbums) + ") " + album.title)
         j += 1
         for track in album.tracks():
-            additional = get_additional_track_data(track.key, settings['serverToken'])
+            additional = get_additional_track_data(track.key, settings['plex']['server_token'])
 
             song = taglib.File(additional['downloadURL'])
 
