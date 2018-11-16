@@ -122,7 +122,7 @@ app.config.update(SECRET_KEY=settings['secret_key'])
 if settings['backends']['plex']['server_token']:
     logger.info("Using Plex backend.")
     plex = PlexServer(settings['backends']['plex']['server_address'], settings['backends']['plex']['server_token'])
-    music = plex.library.section(settings['librarySection'])
+    music = plex.library.section(settings['backends']['plex']['music_library_section'])
     settings['musicLibrary'] = music.locations[0]
 
     logger.debug("Starting plex alert listener.")

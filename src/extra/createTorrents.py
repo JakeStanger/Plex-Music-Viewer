@@ -17,7 +17,7 @@ settings = load(open('settings.json'))
 
 if settings['backends']['plex']['server_token']:
     plex = PlexServer(settings['backends']['plex']['server_address'], settings['backends']['plex']['server_token'])
-    music = plex.library.section(settings['librarySection'])
+    music = plex.library.section(settings['backends']['plex']['music_library_section'])
     settings['musicLibrary'] = music.locations[0]
 else:
     print("Setting not set. Exiting...")
