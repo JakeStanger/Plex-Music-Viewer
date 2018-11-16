@@ -119,9 +119,9 @@ db.init(app)
 
 app.config.update(SECRET_KEY=settings['secret_key'])
 
-if settings['plex']['server_token'] and False:
+if settings['backends']['plex']['server_token'] and False:
     logger.info("Using Plex backend.")
-    plex = PlexServer(settings['plex']['server_address'], settings['plex']['server_token'])
+    plex = PlexServer(settings['backends']['plex']['server_address'], settings['backends']['plex']['server_token'])
     music = plex.library.section(settings['librarySection'])
     settings['musicLibrary'] = music.locations[0]
 
@@ -588,9 +588,9 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.update:
-        if settings['plex']['enable']:
+        if settings['backends']['plex']['enable']:
             db.populate_db_from_plex()
-        if settings['mpd']['enable']:
+        if settings['backends']['mpd']['enable']:
             db.populate_db_from_mpd()
         sys.exit()
 

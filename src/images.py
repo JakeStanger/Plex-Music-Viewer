@@ -34,11 +34,11 @@ def _fetch_from_plex(album: Album) -> Optional[BytesIO]:
     # TODO return none if not using plex
 
     settings = pmv.settings
-    if not settings['plex']['server_token']:
+    if not settings['backends']['plex']['server_token']:
         return None
 
     thumb_id = '/' + str(album.plex_thumb)
-    url = settings['plex']['server_address'] + thumb_id + "?X-Plex-Token=" + settings['plex']['server_token']
+    url = settings['backends']['plex']['server_address'] + thumb_id + "?X-Plex-Token=" + settings['backends']['plex']['server_token']
 
     return _get_url_as_bytesio(url)
 

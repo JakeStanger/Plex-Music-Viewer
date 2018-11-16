@@ -17,7 +17,7 @@ def get_additional_track_data(track_key: str):
     """
     import pmv
     settings = pmv.settings
-    url = settings['plex']['server_address'] + track_key + REQUEST_DATA + settings['plex']['server_token']
+    url = settings['backends']['plex']['server_address'] + track_key + REQUEST_DATA + settings['backends']['plex']['server_token']
     r = requests.get(url, headers={'Accept': 'application/json'})
     return r.json()['MediaContainer']['Metadata']
 
@@ -28,7 +28,7 @@ def get_torrent_location(album_key, settings):
     :param settings: The global settings dictionary
     :return: The location of the album's torrent
     """
-    url = settings['plex']['server_address'] + album_key + REQUEST_DATA + settings['plex']['server_token']
+    url = settings['backends']['plex']['server_address'] + album_key + REQUEST_DATA + settings['backends']['plex']['server_token']
     r = requests.get(url)
     # TODO Refactor to use JSON instead of XML
     system_path = loads(dumps(xmltodict.parse(r.text)))['MediaContainer']['Track']['Media']['Part']['@file']
