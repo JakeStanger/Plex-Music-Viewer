@@ -36,24 +36,26 @@ def populate_db_from_plex():
     artists: List[PlexArtist] = pmv.music.all()
     for artist in artists:
         print(artist.title)
-        artist_key = base_key(artist.key)
+
+        artist_hash = helper.generate_artist_hash(artist.title)
         albums: List[PlexAlbum] = artist.albums()
 
-        artist_query = get_artist_by_hash(artist_key)
+        artist_query = get_artist_by_hash(artist_hash)
         if not artist_query:
             db.session.add(Artist(name=artist.title,
                                   name_sort=artist.titleSort,
                                   album_count=len(albums),
-                                  plex_id=artist_key,
+                                  plex_id=base_key(artist.key),
                                   plex_thumb=base_key(artist.thumb) if artist.thumb else None,
-                                  hash=helper.generate_artist_hash(artist.title)))
-            artist_query = get_artist_by_hash(artist_key)
+                                  hash=artist_hash))
+            artist_query = get_artist_by_hash(artist_hash)
         for album in albums:
             print('┣ ' + album.title)
-            album_key = base_key(album.key)
-            tracks: List[PlexTrack] = album.tracks()
 
-            album_query = get_album_by_hash(album_key)
+            tracks: List[PlexTrack] = album.tracks()
+            album_hash = helper.generate_album_hash(album.title, artist.title)
+
+            album_query = get_album_by_hash(album_hash)
             if not album_query:
                 db.session.add(Album(name=album.title,
                                      name_sort=album.titleSort,
@@ -62,18 +64,20 @@ def populate_db_from_plex():
                                      release_date=get_formatted_date(album.year),
                                      genres=','.join([genre.tag for genre in album.genres]),
                                      track_count=len(tracks),
-                                     plex_id=album_key,
+                                     plex_id=base_key(album.key),
                                      plex_thumb=base_key(album.thumb),
-                                     hash=helper.generate_album_hash(album.title, artist.title)))
-                album_query = get_album_by_hash(album_key)
+                                     hash=album_hash))
+                album_query = get_album_by_hash(album_hash)
 
             for track in tracks:
                 print("┃ \t┣ " + track.title)
-                track_key = base_key(track.key)
-                track_query = get_track_by_hash(artist_key)
+
+                track_part: MediaPart = [*track.iterParts()][0]
+                track_hash = helper.generate_track_hash(track.title, album.title, artist.title, track_part.file)
+
+                track_query = get_track_by_hash(track_hash)
                 if not track_query:
                     media: Media = track.media[0]
-                    track_part: MediaPart = [*track.iterParts()][0]
 
                     db.session.add(Track(name=track.title,
                                          name_sort=track.titleSort,
@@ -88,9 +92,8 @@ def populate_db_from_plex():
                                          bitrate=media.bitrate,
                                          size=track_part.size,
                                          format=media.audioCodec,
-                                         plex_id=track_key,
-                                         hash=helper.generate_track_hash(
-                                             track.title, album.title, artist.title, track_part.file)))
+                                         plex_id=base_key(track.key),
+                                         hash=track_hash))
 
     print("\nFinished constructing db.session in %r seconds" % round(timer() - start_time))
     print("Committing db.session.\n")
