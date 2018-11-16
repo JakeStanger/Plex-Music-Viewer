@@ -70,7 +70,7 @@ def populate_db_from_plex():
                 album_query = get_album_by_hash(album_hash)
 
             for track in tracks:
-                print("┃ \t┣ " + track.title)
+                print("┃ \t┣ " + track.title + track.duration)
 
                 track_part: MediaPart = [*track.iterParts()][0]
                 track_hash = helper.generate_track_hash(track.title, album.title, artist.title, track_part.file)
@@ -78,7 +78,6 @@ def populate_db_from_plex():
                 track_query = get_track_by_hash(track_hash)
                 if not track_query:
                     media: Media = track.media[0]
-                    print(track.duration)
                     db.session.add(Track(name=track.title,
                                          name_sort=track.titleSort,
                                          artist_key=artist_query.id,
