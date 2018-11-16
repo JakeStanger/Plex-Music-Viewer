@@ -1,3 +1,5 @@
+# For Apache mod_wsgi usage
+
 import os.path
 import sys
 
