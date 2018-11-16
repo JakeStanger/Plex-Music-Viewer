@@ -119,7 +119,7 @@ db.init(app)
 
 app.config.update(SECRET_KEY=settings['secret_key'])
 
-if settings['backends']['plex']['server_token'] and False:
+if settings['backends']['plex']['server_token']:
     logger.info("Using Plex backend.")
     plex = PlexServer(settings['backends']['plex']['server_address'], settings['backends']['plex']['server_token'])
     music = plex.library.section(settings['librarySection'])
