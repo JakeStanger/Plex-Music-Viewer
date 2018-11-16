@@ -588,6 +588,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.update:
+        db.init(app)
         if settings['backends']['plex']['enable']:
             db.populate_db_from_plex()
         if settings['backends']['mpd']['enable']:
