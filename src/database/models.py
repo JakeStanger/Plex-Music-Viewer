@@ -142,7 +142,7 @@ class Track(db.Model):
     download_url = db.Column(db.Text)
     bitrate = db.Column(db.Integer)
     size = db.Column(db.BigInteger)
-    format = db.Column(db.String(10))
+    format = db.Column(db.String(32))
 
     plex_id = db.Column(db.BigInteger, unique=True)
 
