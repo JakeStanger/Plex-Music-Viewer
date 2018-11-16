@@ -78,7 +78,7 @@ def populate_db_from_plex():
                 track_query = get_track_by_hash(track_hash)
                 if not track_query:
                     media: Media = track.media[0]
-
+                    print(track.duration)
                     db.session.add(Track(name=track.title,
                                          name_sort=track.titleSort,
                                          artist_key=artist_query.id,
