@@ -65,8 +65,8 @@ class Artist(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
 
-    name = db.Column(db.String(191), nullable=False)
-    name_sort = db.Column(db.String(191))
+    name = db.Column(db.Text, nullable=False)
+    name_sort = db.Column(db.Text)
 
     album_count = db.Column(db.SmallInteger)
 
@@ -87,11 +87,11 @@ class Album(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
 
-    name = db.Column(db.String(191), nullable=False)
-    name_sort = db.Column(db.String(191))
+    name = db.Column(db.Text, nullable=False)
+    name_sort = db.Column(db.Text)
 
     artist_key = db.Column(db.Integer, db.ForeignKey('artists.id'))
-    artist_name = db.Column(db.String(191))
+    artist_name = db.Column(db.Text)
 
     release_date = db.Column(db.Date)
     genres = db.Column(db.Text)
@@ -125,14 +125,14 @@ class Track(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
 
-    name = db.Column(db.String(191), nullable=False)
-    name_sort = db.Column(db.String(191))
+    name = db.Column(db.Text, nullable=False)
+    name_sort = db.Column(db.Text)
 
     artist_key = db.Column(db.Integer, db.ForeignKey('artists.id'))
-    artist_name = db.Column(db.String(191))
+    artist_name = db.Column(db.Text)
 
     album_key = db.Column(db.Integer, db.ForeignKey('albums.id'))
-    album_name = db.Column(db.String(191))
+    album_name = db.Column(db.Text)
 
     duration = db.Column(db.BigInteger)
 
@@ -161,7 +161,7 @@ class Playlist(db.Model):
     __tablename__ = 'playlists'
 
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(191), nullable=False)
+    name = db.Column(db.Text, nullable=False)
 
     creator_id = db.Column(db.Integer, db.ForeignKey('users.id'))
 
