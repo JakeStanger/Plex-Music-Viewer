@@ -1,4 +1,4 @@
-# For uswgi usage
+# For uwsgi usage
 
 from src.pmv import app
 
