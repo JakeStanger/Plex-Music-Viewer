@@ -18,6 +18,12 @@ from .queries import get_artist_by_plex_key, get_album_by_plex_key, get_track_by
 db = database()
 
 
+def get_formatted_date(date):
+    if isinstance(date, int):
+        return '%s-01-01' % date
+    return date
+
+
 def base_key(key: str) -> int:
     return int(path.basename(key))
 
@@ -53,7 +59,7 @@ def populate_db_from_plex():
                                      name_sort=album.titleSort,
                                      artist_key=artist_query.id,
                                      artist_name=artist.title,
-                                     release_date=album.year,
+                                     release_date=get_formatted_date(album.year),
                                      genres=','.join([genre.tag for genre in album.genres]),
                                      track_count=len(tracks),
                                      plex_id=album_key,
@@ -185,7 +191,7 @@ def populate_db_from_mpd():
                                      name_sort=helper.get_sort_name(album),
                                      artist_key=artist_query.id,
                                      artist_name=artist,
-                                     release_date=album_data['date'],
+                                     release_date=get_formatted_date(album_data['date']),
                                      genres=','.join([genre for genre in genre_list]),
                                      track_count=len(tracks),
                                      hash=album_hash))
