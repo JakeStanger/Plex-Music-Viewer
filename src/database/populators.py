@@ -70,7 +70,7 @@ def populate_db_from_plex():
                 album_query = get_album_by_hash(album_hash)
 
             for track in tracks:
-                print("┃ \t┣ " + track.title + track.duration)
+                print("┃ \t┣ " + track.title)
 
                 track_part: MediaPart = [*track.iterParts()][0]
                 track_hash = helper.generate_track_hash(track.title, album.title, artist.title, track_part.file)
@@ -214,7 +214,7 @@ def populate_db_from_mpd():
                                          artist_name=artist,
                                          album_key=album_query.id,
                                          album_name=album,
-                                         duration=track['duration'] * 1000,  # Store time in ms
+                                         duration=float(track['duration']) * 1000,  # Store time in ms
                                          track_num=track['track'],
                                          disc_num=track['disc'],
                                          download_url=full_path,
