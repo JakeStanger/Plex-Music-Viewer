@@ -540,14 +540,14 @@ def zip(album_id):
 
     album = db.get_album_by_id(album_id)
 
-    filename = "zips/%s/%s.zip" % (album.artist_name, album.name)
+    filename = "/etc/pmv/zips/%s/%s.zip" % (album.artist_name, album.name)
     if not path.exists(path.dirname(filename)):
         makedirs(path.dirname(filename))
 
     if not path.isfile(filename):
         z = ZipFile(filename, 'w')
         for track in album.tracks:
-            z.write(unquote(track.downloadURL))
+            z.write(unquote(track.download_url))
         z.close()
 
     return send_file(filename, as_attachment=True, attachment_filename=album.name + '.zip')

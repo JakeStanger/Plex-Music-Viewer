@@ -15,7 +15,7 @@
         <div class="row col-md">
             <form class="form-inline my-2 my-lg-1 mr-1"
                   action="{{ url_for('zip', album_id=key) }}" method="post">
-                <button class="btn btn-outline-success my-sm-0" type="submit">Download album ({{ totalSize }})</button>
+                <button class="btn btn-outline-success my-sm-0" type="submit">Download album ({{ format_size(totalSize) }})</button>
             </form>
             <form class="form-inline my-2 my-lg-1 ml-1"
                   action="{{ url_for('torrent', artist_name=parentTitle, album_name=title) }}" method="post">
