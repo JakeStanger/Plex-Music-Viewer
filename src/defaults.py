@@ -26,7 +26,7 @@ default_settings = {
         }
     },
     "music_library": "",  # TODO Make sure this always ends in a /
-    "database": "sqlite:///pmv.db",
+    "database": "sqlite:///etc/pmv/pmv.db",
     "genius_api": "",
     "colors": {
         "text_dark": "#111111",

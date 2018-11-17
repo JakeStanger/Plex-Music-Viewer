@@ -102,7 +102,7 @@ _update_stack = manager.list()
 # Load settings
 try:
     logger.info("Loading settings from file...")
-    settings = load(open('settings.json'))
+    settings = load(open('/etc/pmv/settings.json'))
     defaults.set_missing_as_default(settings)
 except FileNotFoundError:
     logger.info("No settings file found. Creating a new one with default settings.")
