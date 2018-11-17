@@ -267,12 +267,12 @@ def artist(artist_id: int = None):
     if artist_id:
         artist = db.get_artist_by_id(artist_id)
         albums = artist.albums
-        albums.sort(key=lambda x: x.year, reverse=True)
+        albums.sort(key=lambda x: x.release_date, reverse=True)
 
         return render_template('table.html', albums=albums, title=artist.name)
     else:
         artists = db.get_artists()
-        artists.sort(key=lambda x: x.titleSort)
+        artists.sort(key=lambda x: x.name_sort)
 
         return render_template('table.html', artists=artists, title="Artists")
 
@@ -283,7 +283,7 @@ def artist(artist_id: int = None):
 def album(album_id: int):
     album = db.get_album_by_id(album_id)
     tracks = album.tracks
-    tracks = sorted(tracks, key=lambda x: (x.parentIndex, x.index))
+    tracks = sorted(tracks, key=lambda x: (x.disc_num, x.track_num))
 
     return render_template('table.html', tracks=tracks, title=album.name, key=album.id, parentKey=album.artist_key,
                            parentTitle=album.artist_name, settings=settings, totalSize=album.total_size())
