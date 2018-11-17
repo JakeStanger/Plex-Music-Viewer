@@ -42,7 +42,7 @@
     {% set discs = [0] %}
     {% for track in tracks %}
         {% if not is_search %}
-            {% if int(last.parentIndex) > 1 and int(track.disc_num) != int(discs|last) %}
+            {% if int(last.disc_num) > 1 and int(track.disc_num) != int(discs|last) %}
                 <tr class='discrow'>
                     <td><h6>
                         <b>Disc {{ track.disc_num }}</b>

@@ -293,7 +293,9 @@ def album(album_id: int):
 def track(track_id: int):
     import images
     import lyrics
+    print(track_id)
     track = db.get_track_by_id(track_id)
+    # track.album
 
     banner_colour = images.get_predominant_colour(track.album)
     text_colour = images.get_text_colour(banner_colour)

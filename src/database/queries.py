@@ -116,7 +116,7 @@ def get_album_by_name(artist_name: str, name: str) -> Album:
 
 
 def get_track_by_id(key: int) -> Track:
-    return db.session.query(Track).filter_by(plex_id=key).first()
+    return db.session.query(Track).filter_by(id=key).first()
 
 
 def get_track_by_plex_key(plex_key: int) -> Track:
