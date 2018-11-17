@@ -57,7 +57,7 @@ def _fetch_from_musicbrainz(album: Album, size) -> Optional[str]:
     filename = get_image_path(album, size)
 
     try:
-        with open(filename, 'wb') as f:
+        with open("/etc/pmv/" + filename, 'wb') as f:
             f.write(mb.get_image_front(release['id'], size=size))
     except mb.ResponseError:  # Image not found
         return None
