@@ -8,7 +8,7 @@ def encode_string(string: str) -> str:
 
 
 def get_lyrics_filename(track: Track) -> str:
-    return 'lyrics/%s - %s.txt' % (encode_string(track.artist_name),
+    return '/etc/pmv/lyrics/%s - %s.txt' % (encode_string(track.artist_name),
                                    encode_string(track.name))
 
 
@@ -19,7 +19,7 @@ def get_song_lyrics(track: Track) -> str:
     filename = get_lyrics_filename(track)
 
     if os.path.exists(filename):
-        with open('/etc/pmv/' + filename, 'rb') as f:
+        with open(filename, 'rb') as f:
             return f.read().decode('utf8')
 
     if pmv.settings['genius_api']:
@@ -47,5 +47,5 @@ def update_lyrics(track: Track, lyrics: str):
         os.makedirs('lyrics')
 
     filename = get_lyrics_filename(track)
-    with open('/etc/pmv/' + filename, 'w') as f:
+    with open('/etc/pmv/lyrics/' + filename, 'w') as f:
         f.write(lyrics)

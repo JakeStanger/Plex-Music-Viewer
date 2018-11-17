@@ -46,7 +46,7 @@
         </button>
     </h2>
     <p>
-        {% for line in lyrics(track) %}
+        {% for line in lyrics %}
             {{ line }}<br>
         {% endfor %}
     </p>
@@ -92,7 +92,7 @@
                     </button>
                 </div>
                 <div class="modal-body">
-                    <form action="{{ url_for('edit_lyrics', track_id=track.key) }}" method="post">
+                    <form action="{{ url_for('edit_lyrics', track_id=track.id) }}" method="post">
                         <div class="form-group">
                             <!-- Single line formatting must be preserved to format the lyrics inside the texarea correctly. -->
                             <textarea name="lyrics" class="form-control" style="min-width: 100%;"

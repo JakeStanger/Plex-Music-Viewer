@@ -24,6 +24,7 @@ import database as db
 import defaults
 import argparse
 from helper import *
+
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
@@ -37,7 +38,6 @@ logger.info("Creating Flask object.")
 
 # Flask configuration
 app = Flask(__name__)  # TODO Implement logging throughout application
-
 
 app.url_map.strict_slashes = False
 
@@ -126,7 +126,6 @@ if settings['backends']['plex']['server_token']:
 
     logger.debug("Starting plex alert listener.")
     # plex.startAlertListener(listen)  # TODO Fix alert listener
-
 
 # Login manager configuration
 logger.debug("Creating login manager.")
@@ -293,7 +292,6 @@ def album(album_id: int):
 def track(track_id: int):
     import images
     import lyrics
-    print(track_id)
     track = db.get_track_by_id(track_id)
     # track.album
 
@@ -301,7 +299,9 @@ def track(track_id: int):
     text_colour = images.get_text_colour(banner_colour)
 
     return render_template('track.html', track=track,
-                           banner_colour=banner_colour, text_colour=text_colour, lyrics=lyrics.get_song_lyrics(track))
+                           banner_colour=banner_colour, text_colour=text_colour,
+                           lyrics=lyrics.get_song_lyrics(track)
+                           .split('\n'))
 
 
 @app.route("/track_file/<int:track_id>")
@@ -561,6 +561,7 @@ def image(album_id: int, width=None):
     import images
     return send_file(images.get_image(db.get_album_by_id(album_id),
                                       width), mimetype='image/png')
+
 
 # def delete_entry(entry):
 #     table = db.get_table_for(entry['type'])

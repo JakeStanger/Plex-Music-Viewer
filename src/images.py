@@ -14,7 +14,7 @@ from database.models import Album
 
 
 def get_image_path(album: Album, size: int) -> str:
-    return 'images/%s_%r.jpg' % (album.id, size)
+    return '/etc/pmv/images/%s_%r.jpg' % (album.id, size)
 
 
 def _get_url_as_bytesio(url: str) -> BytesIO:
@@ -37,8 +37,11 @@ def _fetch_from_plex(album: Album) -> Optional[BytesIO]:
     if not settings['backends']['plex']['server_token']:
         return None
 
-    thumb_id = '/' + str(album.plex_thumb)
-    url = settings['backends']['plex']['server_address'] + thumb_id + "?X-Plex-Token=" + settings['backends']['plex']['server_token']
+    url = "%s/library/metadata/%s/thumb/%s/%s" % (settings['backends']['plex']['server_address'],
+                                                  album.plex_id, album.plex_thumb,
+                                                  "?X-Plex-Token=" + settings['backends']['plex']['server_token'])
+
+    print(url)
 
     return _get_url_as_bytesio(url)
 
@@ -57,7 +60,7 @@ def _fetch_from_musicbrainz(album: Album, size) -> Optional[str]:
     filename = get_image_path(album, size)
 
     try:
-        with open("/etc/pmv/" + filename, 'wb') as f:
+        with open(filename, 'wb') as f:
             f.write(mb.get_image_front(release['id'], size=size))
     except mb.ResponseError:  # Image not found
         return None
@@ -66,7 +69,6 @@ def _fetch_from_musicbrainz(album: Album, size) -> Optional[str]:
 
 
 def _fetch_from_lastfm(album: Album) -> Optional[BytesIO]:
-
     """
     Looks up the album on last.fm and fetches
     album art for it.
@@ -141,18 +143,18 @@ def save_image_to_disk(album: Album, image: Image, width: int):
     if not os.path.exists('images'):
         os.makedirs('images')
 
-    image.save(get_image_path(album, width), str(width), 'PNG', quality=90)
+    image.save(get_image_path(album, width), format='PNG', quality=90)
 
 
 def read_image_from_disk(album: Album, width: int):
     try:
-
-        return Image.open(get_image_path(album, width), str(width))
+        path = get_image_path(album, width)
+        return Image.open(path)
     except FileNotFoundError:
         return None
 
 
-def get_raw_image(album: Album, width: int=None) -> Image:
+def get_raw_image(album: Album, width: int = None) -> Image:
     import pmv
     cached = read_image_from_disk(album, width)
     if cached:
@@ -181,7 +183,7 @@ def get_raw_image(album: Album, width: int=None) -> Image:
     #     app.throw_error(400, "invalid thumb-id")
 
 
-def get_image(album: Album, width: Optional[int]=None) -> BytesIO:
+def get_image(album: Album, width: Optional[int] = None) -> BytesIO:
     image = get_raw_image(album, width)
     tmp_image = BytesIO()
     image.save(tmp_image, 'PNG', quality=90)
@@ -266,6 +268,6 @@ def get_text_colour(hex_code: str) -> str:
     settings = pmv.get_settings()['colors']
 
     if brightness > 170:
-        return settings['textDark']
+        return settings['text_dark']
     else:
-        return settings['textLight']
+        return settings['text_light']
