@@ -17,7 +17,7 @@ from database.models import Album
 
 def get_image_path(album: Album, size: int=None) -> str:
     if not album.id:
-        return '/etc/pmv/images/%s-%s.jpg' % (album.artist_name, album.name)
+        return '/etc/pmv/images/%s-%s_%s.jpg' % (album.artist_name, album.name, size if size else 'full')
     return '/etc/pmv/images/%s_%s.jpg' % (album.id, size if size else 'full')
 
 
@@ -28,7 +28,7 @@ def _get_url_as_bytesio(url: str) -> Optional[BytesIO]:
         return None
 
 
-def _fetch_from_plex(album: Album) -> Optional[BytesIO]:
+def _fetch_from_plex(album: Album, width: int) -> Optional[BytesIO]:
     """
     Queries the Plex server using the ID
     and fetches the set thumbnail for the item.
@@ -51,7 +51,7 @@ def _fetch_from_plex(album: Album) -> Optional[BytesIO]:
     return _get_url_as_bytesio(url)
 
 
-def _fetch_from_musicbrainz(album: Album) -> Optional[str]:
+def _fetch_from_musicbrainz(album: Album, width: int) -> Optional[str]:
     """
     Looks up the album and artist on musicbrainz and
     fetches the front cover album art for it.
@@ -61,14 +61,14 @@ def _fetch_from_musicbrainz(album: Album) -> Optional[str]:
     if one was found.
     """
     releases = mb.search_releases(artist=album.artist_name, release=album.name, limit=10)['release-list']
-    filename = get_image_path(album)
+    filename = get_image_path(album, width)
 
     with open(filename, 'wb') as f:
         cover = None
         i = 0
         while not cover and i < len(releases):
             try:
-                cover = mb.get_image_front(releases[i]['id'])
+                cover = mb.get_image_front(releases[i]['id'], size=width)
             except mb.ResponseError:
                 i += 1
         if cover:
@@ -77,7 +77,7 @@ def _fetch_from_musicbrainz(album: Album) -> Optional[str]:
     return filename if cover else None
 
 
-def _fetch_from_lastfm(album: Album) -> Optional[BytesIO]:
+def _fetch_from_lastfm(album: Album, width: int) -> Optional[BytesIO]:
     """
     Looks up the album on last.fm and fetches
     album art for it.
@@ -112,7 +112,7 @@ def _fetch_from_lastfm(album: Album) -> Optional[BytesIO]:
         return None
 
 
-def _fetch_from_local(album: Album) -> Optional[str]:
+def _fetch_from_local(album: Album, width: int) -> Optional[str]:
     """
     Looks for images in the album directory.
     Checks each track in case they are in separated directories.
@@ -181,7 +181,7 @@ def get_raw_image(album: Album, width: int = None) -> Image:
 
     # Call local functions for each fetching method until a result is found
     while not file and i < len(search_methods):
-        file = globals()['_fetch_from_%s' % search_methods[i]](album)
+        file = globals()['_fetch_from_%s' % search_methods[i]](album, width)
         i += 1
 
     if not file:
