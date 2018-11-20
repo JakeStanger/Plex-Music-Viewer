@@ -1,7 +1,9 @@
+import json
 import os
 from io import BytesIO
 from typing import Optional
 from urllib.request import urlopen
+from urllib.error import HTTPError
 
 import musicbrainzngs as mb
 import numpy as np
@@ -13,12 +15,17 @@ from PIL import Image
 from database.models import Album
 
 
-def get_image_path(album: Album, size: int) -> str:
-    return '/etc/pmv/images/%s_%r.jpg' % (album.id, size)
+def get_image_path(album: Album, size: int=None) -> str:
+    if not album.id:
+        return '/etc/pmv/images/%s-%s.jpg' % (album.artist_name, album.name)
+    return '/etc/pmv/images/%s_%s.jpg' % (album.id, size if size else 'full')
 
 
-def _get_url_as_bytesio(url: str) -> BytesIO:
-    return BytesIO(urlopen(url).read())
+def _get_url_as_bytesio(url: str) -> Optional[BytesIO]:
+    try:
+        return BytesIO(urlopen(url).read())
+    except HTTPError:
+        return None
 
 
 def _fetch_from_plex(album: Album) -> Optional[BytesIO]:
@@ -41,12 +48,10 @@ def _fetch_from_plex(album: Album) -> Optional[BytesIO]:
                                                   album.plex_id, album.plex_thumb,
                                                   "?X-Plex-Token=" + settings['backends']['plex']['server_token'])
 
-    print(url)
-
     return _get_url_as_bytesio(url)
 
 
-def _fetch_from_musicbrainz(album: Album, size) -> Optional[str]:
+def _fetch_from_musicbrainz(album: Album) -> Optional[str]:
     """
     Looks up the album and artist on musicbrainz and
     fetches the front cover album art for it.
@@ -55,17 +60,21 @@ def _fetch_from_musicbrainz(album: Album, size) -> Optional[str]:
     :return: The filename of the downloaded image
     if one was found.
     """
-    release = mb.search_releases(artist=album.artist_name, release=album.name, limit=1)['release-list'][0]
+    releases = mb.search_releases(artist=album.artist_name, release=album.name, limit=10)['release-list']
+    filename = get_image_path(album)
 
-    filename = get_image_path(album, size)
+    with open(filename, 'wb') as f:
+        cover = None
+        i = 0
+        while not cover and i < len(releases):
+            try:
+                cover = mb.get_image_front(releases[i]['id'])
+            except mb.ResponseError:
+                i += 1
+        if cover:
+            f.write(cover)
 
-    try:
-        with open(filename, 'wb') as f:
-            f.write(mb.get_image_front(release['id'], size=size))
-    except mb.ResponseError:  # Image not found
-        return None
-
-    return filename
+    return filename if cover else None
 
 
 def _fetch_from_lastfm(album: Album) -> Optional[BytesIO]:
@@ -87,16 +96,20 @@ def _fetch_from_lastfm(album: Album) -> Optional[BytesIO]:
 
     network = pl.LastFMNetwork(api_key=pmv.settings['lastfm_key'])
 
-    album_search = pl.db.AlbumSearch(album.name, network)
+    album_search = pl.AlbumSearch(album.name, network)
 
     if album_search.get_total_result_count() == 0:
         return None
 
     # Get first result
-    album = album_search.get_next_page()[0]
+    search_results = album_search.get_next_page()
+    if len(search_results) > 0:
+        album = album_search.get_next_page()[0]
 
-    url = album.get_cover_image()
-    return _get_url_as_bytesio(url)
+        url = album.get_cover_image()
+        return _get_url_as_bytesio(url) if url else None
+    else:
+        return None
 
 
 def _fetch_from_local(album: Album) -> Optional[str]:
@@ -152,6 +165,8 @@ def read_image_from_disk(album: Album, width: int):
         return Image.open(path)
     except FileNotFoundError:
         return None
+    except OSError:
+        return None
 
 
 def get_raw_image(album: Album, width: int = None) -> Image:
@@ -165,9 +180,12 @@ def get_raw_image(album: Album, width: int = None) -> Image:
     file = None
 
     # Call local functions for each fetching method until a result is found
-    while not file:
+    while not file and i < len(search_methods):
         file = globals()['_fetch_from_%s' % search_methods[i]](album)
         i += 1
+
+    if not file:
+        return None
 
     image = Image.open(file)
     # TODO Other thumb fetching techniques (look for image in directory, last.fm, etc...)
@@ -183,13 +201,16 @@ def get_raw_image(album: Album, width: int = None) -> Image:
     #     app.throw_error(400, "invalid thumb-id")
 
 
-def get_image(album: Album, width: Optional[int] = None) -> BytesIO:
+def get_image(album: Album, width: Optional[int] = None) -> Optional[BytesIO]:
     image = get_raw_image(album, width)
-    tmp_image = BytesIO()
-    image.save(tmp_image, 'PNG', quality=90)
-    tmp_image.seek(0)
+    if image:
+        tmp_image = BytesIO()
+        image.save(tmp_image, 'PNG', quality=90)
+        tmp_image.seek(0)
 
-    return tmp_image
+        return tmp_image
+    else:
+        return None
 
 
 def get_predominant_colour(album: Album) -> str:

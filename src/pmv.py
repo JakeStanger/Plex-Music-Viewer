@@ -567,8 +567,12 @@ def image(album_id: int=None, artist_name: str=None, album_name: str=None, width
         album = db.get_album_by_id(album_id)
 
     if not album:
-        return dumps({"message": "No album could be found for the given artist and album name."})  # TODO Return as JSON
-    return send_file(images.get_image(album, width), mimetype='image/png')
+        album = db.Album(name=album_name, artist_name=artist_name)
+    image = images.get_image(album, width)
+    if image:
+        return send_file(image, mimetype='image/png')
+    else:
+        return dumps({"message": "No album art could be found for the given artist and album name."})
 
 
 # def delete_entry(entry):
