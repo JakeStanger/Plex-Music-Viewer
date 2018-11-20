@@ -555,12 +555,20 @@ def zip(album_id):
 
 @app.route('/image/<int:album_id>')
 @app.route('/image/<int:album_id>/<width>')
+@app.route('/image/<string:artist_name>/<string:album_name>')
+@app.route('/image/<string:artist_name>/<string:album_name>/<int:width>')
 # @login_required
 # @require_permission(db.PermissionType.MUSIC, db.Permission.VIEW)
-def image(album_id: int, width=None):
+def image(album_id: int=None, artist_name: str=None, album_name: str=None, width=None):
     import images
-    return send_file(images.get_image(db.get_album_by_id(album_id),
-                                      width), mimetype='image/png')
+    if artist_name and album_name:
+        album = db.get_album_by_name(artist_name, album_name)
+    else:
+        album = db.get_album_by_id(album_id)
+
+    if not album:
+        return dumps({"message": "No album could be found for the given artist and album name."})  # TODO Return as JSON
+    return send_file(images.get_image(album, width), mimetype='image/png')
 
 
 # def delete_entry(entry):
