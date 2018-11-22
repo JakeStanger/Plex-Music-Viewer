@@ -138,21 +138,6 @@ musicbrainz.set_useragent('Plex Music Viewer', '0.1',
                           'https://github.com/JakeStanger/Plex-Music-Viewer')  # TODO Proper version management
 
 
-def get_app():
-    global app
-    return app
-
-
-def get_settings() -> dict:
-    global settings
-    return settings
-
-
-def get_music() -> Library:
-    global music
-    return music
-
-
 @app.errorhandler(404)
 def page_not_found(e, custom_message=None):
     logger.debug("Throwing error 404 (%s)" % custom_message or e)

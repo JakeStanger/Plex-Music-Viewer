@@ -286,7 +286,7 @@ def get_text_colour(hex_code: str) -> str:
 
     # Brightness is from 0-255
 
-    settings = pmv.get_settings()['colors']
+    settings = pmv.settings['colors']
 
     if brightness > 170:
         return settings['text_dark']
