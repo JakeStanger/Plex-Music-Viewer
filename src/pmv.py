@@ -138,21 +138,6 @@ musicbrainz.set_useragent('Plex Music Viewer', '0.1',
                           'https://github.com/JakeStanger/Plex-Music-Viewer')  # TODO Proper version management
 
 
-def get_app():
-    global app
-    return app
-
-
-def get_settings() -> dict:
-    global settings
-    return settings
-
-
-def get_music() -> Library:
-    global music
-    return music
-
-
 @app.errorhandler(404)
 def page_not_found(e, custom_message=None):
     logger.debug("Throwing error 404 (%s)" % custom_message or e)
@@ -307,7 +292,7 @@ def track(track_id: int):
 @app.route("/track_file/<int:track_id>")
 @app.route("/track_file/<int:track_id>/<download>")
 @login_required
-@require_permission(db.Permission.music_can_view)
+@require_permission(db.Permission.music_can_download)
 def track_file(track_id: int, download=False):
     track = db.get_track_by_id(track_id)
 
@@ -354,24 +339,22 @@ def update_metadata(track_id: int):
 @login_required
 @require_permission(db.Permission.music_can_view)
 def search(query=None, for_artists=True, for_albums=True, for_tracks=True):
-    return "SEARCH NOT IMPLEMENTED"
-    # if not query:
-    #     query = request.form.get('query')
-    #
-    # if for_artists:
-    #     artists = music.search(query, libtype="artist", maxresults=settings['searchResults']['artistResults'])
-    #     artists = [ph.ArtistWrapper(artist) for artist in artists]
-    #
-    # if for_albums:
-    #     albums = music.search(query, libtype="album", maxresults=settings['searchResults']['albumResults'])
-    #     albums = [ph.AlbumWrapper(album) for album in albums]
-    #
-    # if for_tracks:
-    #     tracks = music.search(query, libtype="track", maxresults=settings['searchResults']['trackResults'])
-    #     tracks = [ph.TrackWrapper(track) for track in tracks]
-    #
-    # return render_template('table.html', artists=artists, albums=albums, tracks=tracks, title=query,
-    #                        is_search=True, prev=request.referrer)
+    if not query:
+        query = request.form.get('query')
+
+    if for_artists:
+        artists = db.get_artists_by_name(query)
+
+    if for_albums:
+        albums = db.get_albums_by_name(query)
+
+    if for_tracks:
+        tracks = db.get_tracks_by_name(query)
+
+    print(artists, albums, tracks)
+
+    return render_template('table.html', artists=artists, albums=albums, tracks=tracks, title=query,
+                           is_search=True, prev=request.referrer)
 
 
 @login_manager.user_loader

@@ -10,7 +10,7 @@
     <tbody id="album_table">
         <tr>
             <th>Album Name</th>
-            <th>Year</th>
+            <th>Release Date</th>
             <th>Track Count</th>
             {% if is_search %}
                 <th>Artist</th>
@@ -19,8 +19,8 @@
         {% for album in albums %}
             <tr>
                 <td><a href="{{ url_for('album', album_id=album.id) }}">{{ album.name }}</a></td>
-                <td>{{ album.year }}</td>
-                <td>{{ album.num_tracks }}</td>
+                <td>{{ album.release_date }}</td>
+                <td>{{ album.track_count }}</td>
                 {% if is_search %}
                     <td><a href="{{ url_for('artist', artist_key=album.artist_key) }}">{{ album.artist_name }}</a></td>
                 {% endif %}

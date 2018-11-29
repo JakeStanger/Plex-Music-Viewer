@@ -71,8 +71,8 @@
     <td>{{ track.format }}</td>
     <td>{{ format_size(track.size) }}</td>
     {% if is_search %}
-        <td><a href="{{ url_for('album', album_id=key_num(track.album_key)) }}">{{ track.album_title }}</a></td>
-        <td><a href="{{ url_for('artist', artist_id=key_num(track.artist_key)) }}">{{ track.artist_title }}</a>
+        <td><a href="{{ url_for('album', album_id=track.album_key) }}">{{ track.album_name }}</a></td>
+        <td><a href="{{ url_for('artist', artist_id=track.artist_key) }}">{{ track.artist_name }}</a>
         </td>
     {% endif %}
     </tr>

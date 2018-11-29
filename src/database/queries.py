@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Union, List
 
 import helper
 from .db import database, Permission
@@ -99,6 +99,10 @@ def get_artist_by_name(name: str) -> Artist:
     return db.session.query(Artist).filter_by(name=name).first()
 
 
+def get_artists_by_name(query: str) -> List[Artist]:
+    return db.session.query(Artist).filter(Artist.name.ilike('%' + query + '%')).all()
+
+
 def get_album_by_id(key: int) -> Album:
     return db.session.query(Album).filter_by(id=key).first()
 
@@ -115,6 +119,10 @@ def get_album_by_name(artist_name: str, name: str) -> Album:
     return db.session.query(Album).filter_by(name=name, artist_name=artist_name).first()
 
 
+def get_albums_by_name(query: str) -> List[Album]:
+    return db.session.query(Album).filter(Album.name.ilike('%' + query + '%')).all()
+
+
 def get_track_by_id(key: int) -> Track:
     return db.session.query(Track).filter_by(id=key).first()
 
@@ -125,3 +133,7 @@ def get_track_by_plex_key(plex_key: int) -> Track:
 
 def get_track_by_hash(hash_key: int) -> Track:
     return db.session.query(Track).filter_by(hash=hash_key).first()
+
+
+def get_tracks_by_name(query: str) -> List[Track]:
+    return db.session.query(Track).filter(Track.name.ilike('%' + query + '%')).all()
