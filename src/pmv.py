@@ -1,4 +1,5 @@
 import base64
+import datetime
 import logging
 import sched
 import sys
@@ -147,14 +148,6 @@ def page_not_found(e, custom_message=None):
 app.jinja_env.globals.update(throw_error=throw_error)
 
 
-# @app.before_request
-# def break_static():
-#     # Let Apache handle requests on these directories
-#     if request.endpoint == 'music' or request.endpoint == 'torrents':
-#         abort(404)
-#     return None
-
-
 def import_user() -> LocalProxy:
     """
     Imports the current user from Flask and returns it.
@@ -235,7 +228,7 @@ def request_loader(req):
 
 @app.route('/error')
 def error():
-    return render_template('error.html', code=str(402), message="You do not have db.Permission to view this page.")
+    return render_template('error.html', code=str(402), message="You do not have permission to view this page.")
 
 
 @app.route('/')
@@ -251,7 +244,7 @@ def artist(artist_id: int = None):
     if artist_id:
         artist = db.get_artist_by_id(artist_id)
         albums = artist.albums
-        albums.sort(key=lambda x: x.release_date, reverse=True)
+        albums.sort(key=lambda x: x.release_date or datetime.date(datetime.MINYEAR, 1, 1), reverse=True)
 
         return render_template('table.html', albums=albums, title=artist.name)
     else:
@@ -274,11 +267,12 @@ def album(album_id: int):
 
 
 @app.route("/track/<int:track_id>")
+@login_required
+@require_permission(db.Permission.music_can_view)
 def track(track_id: int):
     import images
     import lyrics
     track = db.get_track_by_id(track_id)
-    # track.album
 
     banner_colour = images.get_predominant_colour(track.album)
     text_colour = images.get_text_colour(banner_colour)
