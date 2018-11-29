@@ -14,7 +14,6 @@ from flask import Flask, render_template, send_file, redirect, url_for, flash, r
 from flask_login import LoginManager, login_required, login_user, logout_user
 from magic import Magic
 from musicbrainzngs import musicbrainz
-from plexapi.library import Library
 from plexapi.server import PlexServer
 from simplejson import dumps, load
 from werkzeug.local import LocalProxy
