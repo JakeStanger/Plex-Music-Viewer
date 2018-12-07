@@ -12,8 +12,11 @@ def add_single(obj):
     db.session.commit()
 
 
-def get_users():
-    return db.session.query(User).all()
+def get_users(include_deleted: bool = False):
+    if include_deleted:
+        return db.session.query(User).all()
+    else:
+        return db.session.query(User).filter_by(is_deleted=False).all()
 
 
 def add_user(username, password):
@@ -49,8 +52,8 @@ def edit_user_by_id(key: int, fields: dict):
             elif key == 'tv_perms':
                 start = 12
 
-            for i in range(start, start+6):
-                setattr(user, Permission(i).name, value[i-start] != '-')
+            for i in range(start, start + 6):
+                setattr(user, Permission(i).name, value[i - start] != '-')
 
         if key == 'is_admin' and isinstance(value, str):
             value = value == 'True'  # Any string passed other than 'True' should never be interpreted as true
@@ -72,11 +75,13 @@ def get_user(param: Union[str, int]) -> User:
 def delete_user_by_id(key: int, restore=False):
     user: User = get_user_by_id(key)
     user.is_deleted = not restore
+    db.session.commit()
 
 
 def delete_user_by_username(username: str, restore=False):
     user: User = get_user_by_username(username)
     user.is_deleted = not restore
+    db.session.commit()
 
 
 def get_artists():
