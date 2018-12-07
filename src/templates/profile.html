@@ -1,5 +1,66 @@
 {% extends 'layout.html' %}
 
 {% block body %}
-    {{ current_user.api_key }}
+    <p>API key: <span style="background-color: #ffffff">{{ current_user.api_key }}</span></p>
+    <p>Keep this secret! Anybody with this key has full access to your account.</p>
+    <hr>
+    <h3>Granted Permissions</h3>
+    <ul>
+        {% if current_user.music_can_delete %}
+            <li>Delete Music</li>
+        {% endif %}
+        {% if current_user.music_can_transcode %}
+            <li>Transcode Music</li>
+        {% endif %}
+        {% if current_user.music_can_upload %}
+            <li>Upload Music</li>
+        {% endif %}
+        {% if current_user.music_can_edit %}
+            <li>Edit Music</li>
+        {% endif %}
+        {% if current_user.music_can_download %}
+            <li>Download Music</li>
+        {% endif %}
+        {% if current_user.music_can_view %}
+            <li>View Music</li>
+        {% endif %}
+        <hr>
+        {% if current_user.movie_can_delete %}
+            <li>Delete Movies</li>
+        {% endif %}
+        {% if current_user.movie_can_transcode %}
+            <li>Transcode Movies</li>
+        {% endif %}
+        {% if current_user.movie_can_upload %}
+            <li>Upload Movies</li>
+        {% endif %}
+        {% if current_user.movie_can_edit %}
+            <li>Edit Movies</li>
+        {% endif %}
+        {% if current_user.movie_can_download %}
+            <li>Download Movies</li>
+        {% endif %}
+        {% if current_user.movie_can_view %}
+            <li>View Movies</li>
+        {% endif %}
+        <hr>
+        {% if current_user.tv_can_delete %}
+            <li>Delete TV</li>
+        {% endif %}
+        {% if current_user.tv_can_transcode %}
+            <li>Transcode TV</li>
+        {% endif %}
+        {% if current_user.tv_can_upload %}
+            <li>Upload TV</li>
+        {% endif %}
+        {% if current_user.tv_can_edit %}
+            <li>Edit TV</li>
+        {% endif %}
+        {% if current_user.tv_can_download %}
+            <li>Download TV</li>
+        {% endif %}
+        {% if current_user.tv_can_view %}
+            <li>View TV</li>
+        {% endif %}
+        <ul>
 {% endblock %}
