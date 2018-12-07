@@ -333,7 +333,6 @@ def update_metadata(track_id: int):
     return str(track_id)  # TODO Write metadata updating (local, database, plex)
 
 
-# TODO URGENT - Rewrite search (front + backend)
 @app.route("/search", methods=['GET', 'POST'])
 @app.route("/search/<query>", methods=['GET', 'POST'])
 @login_required
