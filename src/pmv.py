@@ -351,8 +351,6 @@ def search(query=None, for_artists=True, for_albums=True, for_tracks=True):
     if for_tracks:
         tracks = db.get_tracks_by_name(query)
 
-    print(artists, albums, tracks)
-
     return render_template('table.html', artists=artists, albums=albums, tracks=tracks, title=query,
                            is_search=True, prev=request.referrer)
 
