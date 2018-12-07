@@ -1,7 +1,6 @@
-import json
 import os
 from io import BytesIO
-from typing import Optional
+from typing import Optional, List, Tuple
 from urllib.request import urlopen
 from urllib.error import HTTPError
 
@@ -13,9 +12,10 @@ import scipy.cluster
 import scipy.misc
 from PIL import Image
 from database.models import Album
+from colorharmonies import Color, complementaryColor
 
 
-def get_image_path(album: Album, size: int=None) -> str:
+def get_image_path(album: Album, size: int = None) -> str:
     if not album.id:
         return '/etc/pmv/images/%s-%s_%s.jpg' % (album.artist_name, album.name, size if size else 'full')
     return '/etc/pmv/images/%s_%s.jpg' % (album.id, size if size else 'full')
@@ -249,19 +249,14 @@ def get_predominant_colour(album: Album) -> str:
     return colour
 
 
-def get_complimentary_colour(hex_code: str) -> str:
-    """
-    Gets the inverse colour to a given hex code.
+def get_rgb(hex_code: str) -> Tuple[int, int, int]:
+    hex_code = hex_code.strip('#')
 
-    :param hex_code: A hex colour with or without the starting hash
-    :return: A hex code of the inverse colour, with the starting hash.
-    """
-    if hex_code.startswith('#'):
-        hex_code = hex_code[1:]
+    return int(hex_code[0:2], 16), int(hex_code[2:4], 16), int(hex_code[4:6], 16)
 
-    rgb = (hex_code[0:2], hex_code[2:4], hex_code[4:6])
-    comp = ['%02X' % (255 - int(a, 16)) for a in rgb]
-    return '#' + ''.join(comp)
+
+def get_hex(rgb: Tuple[int, int, int]) -> str:
+    return '#%02x%02x%02x' % (rgb[0], rgb[1], rgb[2])
 
 
 def get_text_colour(hex_code: str) -> str:
@@ -276,13 +271,11 @@ def get_text_colour(hex_code: str) -> str:
     :return: A light or dark colour with the starting hash.
     """
     import pmv
-    if hex_code.startswith('#'):
-        hex_code = hex_code[1:]
 
-    rgb = (int(hex_code[0:2], 16), int(hex_code[2:4], 16), int(hex_code[4:6], 16))
+    r, g, b = get_rgb(hex_code)
 
     # W3C formula for brightness
-    brightness = (rgb[0] * 299 + rgb[1] * 587 + rgb[2] * 114) / 1000
+    brightness = (r * 299 + g * 587 + b * 114) / 1000
 
     # Brightness is from 0-255
 
@@ -292,3 +285,11 @@ def get_text_colour(hex_code: str) -> str:
         return settings['text_dark']
     else:
         return settings['text_light']
+
+
+def get_button_colour(hex_code: str) -> str:
+    rgb = get_rgb(hex_code)
+    color = Color(rgb, "", "")
+
+    palette = complementaryColor(color)
+    return get_hex(palette)

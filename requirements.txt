@@ -18,3 +18,4 @@ flask-login
 lyricsgenius
 mysqlclient
 python-mpd2
+colorharmonies
