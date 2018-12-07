@@ -280,10 +280,11 @@ def track(track_id: int):
     # track.album
 
     banner_colour = images.get_predominant_colour(track.album)
+    button_colour = images.get_button_colour(banner_colour)
     text_colour = images.get_text_colour(banner_colour)
 
     return render_template('track.html', track=track,
-                           banner_colour=banner_colour, text_colour=text_colour,
+                           banner_colour=banner_colour, text_colour=text_colour, button_colour=button_colour,
                            lyrics=lyrics.get_song_lyrics(track)
                            .split('\n'))
 
