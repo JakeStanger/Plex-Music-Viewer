@@ -9,6 +9,7 @@
 {% endblock %}
 
 {% block body_before %}
+    <audio id="audio" preload="auto"></audio>
     <div class="jumbotron jumbotron-fluid" style="background-color: {{ banner_colour }}; color: {{ text_colour }}">
         <div class="container-fluid">
             <div class="row">
@@ -20,9 +21,12 @@
                     <p class="lead">{{ track.artist_name }} - {{ track.album_name }}</p>
                 </div>
                 <div class="col-12 col-lg-3">
-                    <button class="btn btn-round">
-                        <span class="oi oi-media-play"></span>
+                    <button class="btn btn-round" style="background-color: {{ button_colour }}; color: {{ text_colour }};"
+                            onclick="play(`{{ url_for('track_file', track_id=track.id) }}`)">
+                        <span id="play" class="oi oi-media-play"></span>
                     </button>
+                    <a class="btn btn-round" style="background-color: {{ button_colour }}; color: {{ text_colour }};" href="{{ url_for('track_file', track_id=track.id, download='download') }}">
+                        <span class="oi oi-data-transfer-download" style="top: 17%;"></span></a>
                 </div>
             </div>
         </div>
@@ -120,5 +124,43 @@
                 editable: [[1, 'metadata']]
             }
         });
+    </script>
+    <script>
+        function baseName(str) {
+            let base = String(str).substring(str.lastIndexOf('/') + 1);
+            if (base.lastIndexOf(".") != -1)
+                base = base.substring(0, base.lastIndexOf("."));
+            return base;
+        }
+
+        let status = 0;
+        let prevID;
+
+        function play(music) {
+
+            let btnID = baseName(music);
+
+
+            let audio = $("#audio");
+            let btn = $(`#play`);
+
+            if (btnID != prevID) {
+                status = 0;
+                let btns = $('*[id^="play"]').attr("class", "oi oi-media-play");
+
+            }
+            prevID = btnID;
+
+            if (status == 0 || status == 2) {
+                if (status == 0) audio.attr("src", music);
+                audio[0].play();
+                btn.attr("class", "oi oi-media-pause");
+                status = 1;
+            } else if (status == 1) {
+                audio[0].pause();
+                btn.attr("class", "oi oi-media-play");
+                status = 2;
+            }
+        }
     </script>
 {% endblock %}
