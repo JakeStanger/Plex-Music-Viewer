@@ -54,7 +54,7 @@
         {% endif %}
     <td class="row">
         <div class="col-2">
-            {{ track.index }}
+            {{ track.track_num }}
         </div>
         <div class="btn-group" role="group">
             <button class="btn btn-link" onclick="play(`{{ url_for('track_file', track_id=track.id) }}`);">
