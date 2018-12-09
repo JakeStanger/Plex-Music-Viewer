@@ -1,5 +1,9 @@
 {% extends 'layout.html' %}
 
 {% block body %}
-    <p>Playlists.</p>
+    {% for playlist in playlists %}
+        <p><a href="{{ url_for('playlist', playlist_id=playlist.id) }}">{{playlist.name}}</a></p>
+    {% endfor %}
+    <hr>
+    <a href="{{ url_for('create_playlist', name="Test Playlist")}}">Create Playlist</a>
 {% endblock %}
