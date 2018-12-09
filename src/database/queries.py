@@ -144,5 +144,9 @@ def get_tracks_by_name(query: str) -> List[Track]:
     return db.session.query(Track).filter(Track.name.ilike('%' + query + '%')).all()
 
 
-def get_playlists_by_user(user: User) -> object:
-    return db.session.query(Playlist).filter_by(creator_id=user.id).first()
+def get_playlist_by_id(key: int) -> Playlist:
+    return db.session.query(Playlist).filter_by(id=key).first()
+
+
+def get_playlists_by_user(user: User) -> List[Playlist]:
+    return db.session.query(Playlist).filter_by(creator_id=user.id).all()
