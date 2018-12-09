@@ -277,6 +277,8 @@ def track(track_id: int):
     import images
     import lyrics
     track = db.get_track_by_id(track_id)
+
+    playlists = db.get_playlists_by_user(get_current_user())
     # track.album
 
     banner_colour = images.get_predominant_colour(track.album)
@@ -286,7 +288,7 @@ def track(track_id: int):
     return render_template('track.html', track=track,
                            banner_colour=banner_colour, text_colour=text_colour, button_colour=button_colour,
                            lyrics=lyrics.get_song_lyrics(track)
-                           .split('\n'))
+                           .split('\n'), playlists=playlists)
 
 
 @app.route("/track_file/<int:track_id>")
@@ -309,8 +311,53 @@ def track_file(track_id: int, download=False):
 @login_required
 @require_permission(db.Permission.music_can_view)
 def playlists():
-    playlists = db.get_playlists_by_user(get_current_user())
-    return render_template('playlists.html', playlists=playlists)
+    playlists = db.get_playlists_by_user(get_current_user()) or []
+
+    test_tracks = db.get_album_by_name("King Crimson", "Red").tracks + db.get_album_by_name("Yes", "Fragile").tracks
+
+    return render_template('playlists.html', playlists=playlists, test_tracks=test_tracks)
+
+
+@app.route('/playlist/<int:playlist_id>')
+@login_required
+@require_permission(db.Permission.music_can_view)
+def playlist(playlist_id: int):
+    playlist = db.get_playlist_by_id(playlist_id)
+
+    return render_template('table.html', tracks=playlist.tracks, title=playlist.name, settings=settings,
+                           is_search=True)
+
+
+@app.route('/create_playlist/<string:name>')
+@login_required
+@require_permission(db.Permission.music_can_view)
+def create_playlist(name: str):
+    playlist = db.Playlist(name=name, creator_id=get_current_user().id)
+    db.add_single(playlist)
+
+    return redirect(request.referrer)
+
+
+@app.route('/add_to_playlist/<int:playlist_id>/track/<int:track_id>', methods=['POST'])
+@app.route('/add_to_playlist/track/<int:track_id>', methods=['POST'])
+@login_required
+@require_permission(db.Permission.music_can_view)
+def add_to_playlist(track_id: int, playlist_id: int = None):
+    if not playlist_id:
+        playlist_id = request.form.get('playlist_id')
+
+    track = db.get_track_by_id(track_id)
+
+    playlist = db.get_playlist_by_id(playlist_id)
+
+    print(playlist, track)
+
+    # TODO: Duplication checking!
+    playlist.tracks.append(track)
+
+    db.session().commit()
+
+    return redirect(request.referrer)
 
 
 @app.route('/edit_lyrics/<int:track_id>', methods=['POST'])
@@ -540,7 +587,7 @@ def zip(album_id):
 @app.route('/image/<string:artist_name>/<string:album_name>/<int:width>')
 # @login_required
 # @require_permission(db.PermissionType.MUSIC, db.Permission.VIEW)
-def image(album_id: int=None, artist_name: str=None, album_name: str=None, width=None):
+def image(album_id: int = None, artist_name: str = None, album_name: str = None, width=None):
     import images
     if artist_name and album_name:
         album = db.get_album_by_name(artist_name, album_name)
