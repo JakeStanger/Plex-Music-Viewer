@@ -1,37 +1,41 @@
 .btn-round{
-	border-radius: 50%;
-	font-size: 24px;
-	height: 56px;
-	margin: 10px;
-	min-width: 56px;
-	width: 56px;
-	padding: 0;
-	overflow: hidden;
+    border-radius: 50%;
+    font-size: 24px;
+    height: 56px;
+    margin: 10px;
+    min-width: 56px;
+    width: 56px;
+    padding: 0;
+    overflow: hidden;
     justify-content: center;
     justify-items: center;
 }
 
-@media (max-width: 991px) {
-	.display-4 {
-		font-size: 2rem;
-	}
+.lyrics {
+    font-weight: 300;
+}
 
-	.album-art {
-		display: flex;
-		justify-content: center;
-		align-items: center;
-	}
+@media (max-width: 991px) {
+    .display-4 {
+        font-size: 2rem;
+    }
+
+    .album-art {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
 }
 
 @media (min-width: 992px) and (max-width: 1600px){
-	.display-4 {
-		font-size: 2.7rem;
-	}
+    .display-4 {
+        font-size: 2.7rem;
+    }
 }
 
 @media (min-width: 992px) {
-	.album-art {
-		display: flex;
-		justify-content: right;
-	}
+    .album-art {
+        display: flex;
+        justify-content: right;
+    }
 }
