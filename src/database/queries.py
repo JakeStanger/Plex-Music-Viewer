@@ -2,7 +2,7 @@ from typing import Union, List
 
 import helper
 from .db import database, Permission
-from .models import User, Artist, Album, Track
+from .models import User, Artist, Album, Track, Playlist
 
 db = database()
 
@@ -142,3 +142,7 @@ def get_track_by_hash(hash_key: int) -> Track:
 
 def get_tracks_by_name(query: str) -> List[Track]:
     return db.session.query(Track).filter(Track.name.ilike('%' + query + '%')).all()
+
+
+def get_playlists_by_user(user: User) -> object:
+    return db.session.query(Playlist).filter_by(creator_id=user.id).first()
