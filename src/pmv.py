@@ -154,7 +154,7 @@ app.jinja_env.globals.update(throw_error=throw_error)
 #     return None
 
 
-def import_user() -> LocalProxy:
+def get_current_user() -> db.User:
     """
     Imports the current user from Flask and returns it.
     Used outside of requests where current_user is otherwise None.
@@ -169,7 +169,7 @@ def import_user() -> LocalProxy:
 
 
 def require_permission(permission: db.Permission,
-                       get_user_func: LocalProxy = import_user):  # TODO Require login here rather than on all functions
+                       get_user_func: LocalProxy = get_current_user):  # TODO Require login here rather than on all functions
     """
     Decorating a function with this ensures the current
     user has db.Permission to load to page.
@@ -194,7 +194,7 @@ def require_permission(permission: db.Permission,
     return permission_wrapper
 
 
-def admin_required(func, get_user=import_user):
+def admin_required(func, get_user=get_current_user):
     @wraps(func)
     def admin_wrapper(*args, **kwargs):
         user = get_user()
@@ -309,7 +309,8 @@ def track_file(track_id: int, download=False):
 @login_required
 @require_permission(db.Permission.music_can_view)
 def playlists():
-    return render_template('playlists.html')
+    playlists = db.get_playlists_by_user(get_current_user())
+    return render_template('playlists.html', playlists=playlists)
 
 
 @app.route('/edit_lyrics/<int:track_id>', methods=['POST'])
