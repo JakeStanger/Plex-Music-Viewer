@@ -120,6 +120,10 @@ def get_album_by_hash(hash_key: int) -> Album:
     return db.session.query(Album).filter_by(hash=hash_key).first()
 
 
+def get_album_disc_by_id(key: int, disc: int) -> List[Track]:
+    return db.session.query(Track).filter_by(album_key=key, disc_num=disc).all()
+
+
 def get_album_by_name(artist_name: str, name: str) -> Album:
     return db.session.query(Album).filter_by(name=name, artist_name=artist_name).first()
 

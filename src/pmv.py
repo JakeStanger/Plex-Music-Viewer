@@ -108,7 +108,7 @@ except FileNotFoundError:
     settings = defaults.default_settings
     defaults.write_settings(settings)
 
-# logger.setLevel(settings['log_level'])  # TODO Set log level from settings
+logger.setLevel(settings['log_level'])
 
 logger.debug('Creating database engine')
 app.config['SQLALCHEMY_DATABASE_URI'] = settings['database']
@@ -561,20 +561,29 @@ def torrent(artist_name, album_name):
 
 
 @app.route('/zip/<int:album_id>', methods=['POST'])
+@app.route('/zip/<int:album_id>/<int:disc>', methods=['POST'])
+@app.route('/zip/<int:playlist_id>', methods=['POST'])
 @login_required
 @require_permission(db.Permission.music_can_download)
-def zip(album_id):
-    # album = ph.get_album(artist_name, album_name)
+def zip(album_id: int = None, playlist_id: int = None, disc: int = None):
+    if album_id:
+        item = db.get_album_by_id(album_id)
+        filename = "/etc/pmv/zips/%s/%s.zip" % (album.artist_name, album.name)
+        if disc:
+            tracks = db.get_album_disc_by_id(album_id, disc)
+        else:
+            tracks = item.tracks
+    else:
+        item = db.get_playlist_by_id(playlist_id)
+        tracks = item.tracks
+        filename = "/etc/pmv/zips/playlists/%s/%s.zip" % (playlist.creator, playlist.name)
 
-    album = db.get_album_by_id(album_id)
-
-    filename = "/etc/pmv/zips/%s/%s.zip" % (album.artist_name, album.name)
     if not path.exists(path.dirname(filename)):
         makedirs(path.dirname(filename))
 
     if not path.isfile(filename):
         z = ZipFile(filename, 'w')
-        for track in album.tracks:
+        for track in tracks:
             z.write(unquote(track.download_url))
         z.close()
 
