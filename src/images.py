@@ -38,7 +38,6 @@ def _fetch_from_plex(album: Album, width: int) -> Optional[BytesIO]:
     if one is found.
     """
     import pmv
-    # TODO return none if not using plex
 
     settings = pmv.settings
     if not settings['backends']['plex']['server_token']:
@@ -188,7 +187,6 @@ def get_raw_image(album: Album, width: int = None) -> Image:
         return None
 
     image = Image.open(file)
-    # TODO Other thumb fetching techniques (look for image in directory, last.fm, etc...)
 
     if width:
         size = int(width), int(width)
