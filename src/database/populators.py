@@ -87,7 +87,7 @@ def populate_db_from_plex():
                                          duration=track.duration,
                                          track_num=track.index,
                                          disc_num=track.parentIndex,
-                                         download_url=track_part.file,
+                                         download_url=track_part.file,  # TODO: Use relative instead of full path
                                          bitrate=media.bitrate,
                                          size=track_part.size,
                                          format=media.audioCodec,
@@ -115,12 +115,14 @@ def _get_mpd_key(data, key):
 def populate_db_from_mpd():
     import pmv
 
+    settings = pmv.settings['backends']['mpd']
+
     start_time = timer()
 
     music_library = pmv.settings['music_library']
     unknown_album = "[Unknown Album]"
 
-    client = PersistentMPDClient(host='localhost', port=6600)  # TODO Add mpd settings to config
+    client = PersistentMPDClient(host=settings['hostname'], port=settings['port'])
 
     library_dict = {}
 
@@ -217,7 +219,7 @@ def populate_db_from_mpd():
                                          duration=float(track['duration']) * 1000,  # Store time in ms
                                          track_num=track['track'],
                                          disc_num=track['disc'],
-                                         download_url=full_path,
+                                         download_url=full_path,  # TODO: (CHECK) Use relative instead of full path
                                          bitrate=mutagen.File(full_path).info.bitrate / 1000,  # Store bitrate in kbps
                                          size=os.path.getsize(full_path),
                                          format=full_path.rpartition('.')[-1].lower(),
