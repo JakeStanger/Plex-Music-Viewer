@@ -15,7 +15,9 @@
         <div class="row col-md">
             <form class="form-inline my-2 my-lg-1 mr-1"
                   action="{{ url_for('zip', album_id=key) }}" method="post">
-                <button class="btn btn-outline-success my-sm-0" type="submit">Download album ({{ format_size(totalSize) }})</button>
+                <button class="btn btn-outline-success my-sm-0" type="submit">Download album
+                    ({{ format_size(totalSize) }})
+                </button>
             </form>
             <form class="form-inline my-2 my-lg-1 ml-1"
                   action="{{ url_for('torrent', artist_name=parentTitle, album_name=title) }}" method="post">
@@ -44,9 +46,23 @@
         {% if not is_search %}
             {% if int(last.disc_num) > 1 and int(track.disc_num) != int(discs|last) %}
                 <tr class='discrow'>
-                    <td><h6>
-                        <b>Disc {{ track.disc_num }}</b>
-                    </h6></td>
+                    <td>
+                        <div class="row">
+                            <div class="col-4">
+                                <form class="form-inline my-2 my-lg-1 mr-1"
+                                      action="{{ url_for('zip', album_id=key, disc=track.disc_num) }}" method="post">
+                                    <button class="btn btn-link" type="submit"><span
+                                            class="oi oi-data-transfer-download"></span></a>
+                                    </button>
+                                </form>
+                            </div>
+                            <div class="col">
+                                <h6 style="position: absolute; top: 12px">
+                                    <b>Disc {{ track.disc_num }}</b>
+                                </h6>
+                            </div>
+                        </div>
+                    </td>
                 </tr>
                 {% if discs.append(track.disc_num) %}{% endif %}
             {% endif %}
