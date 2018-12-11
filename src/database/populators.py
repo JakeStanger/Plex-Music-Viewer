@@ -87,7 +87,7 @@ def populate_db_from_plex():
                                          duration=track.duration,
                                          track_num=track.index,
                                          disc_num=track.parentIndex,
-                                         download_url=track_part.file,  # TODO: Use relative instead of full path
+                                         download_url=track_part.file.strip(pmv.settings['music_library']),
                                          bitrate=media.bitrate,
                                          size=track_part.size,
                                          format=media.audioCodec,
@@ -206,7 +206,7 @@ def populate_db_from_mpd():
                 print("┃ \t┣ " + track_title)
 
                 full_path = music_library + track['file']
-                track_hash = helper.generate_track_hash(track_title, album, artist, full_path)
+                track_hash = helper.generate_track_hash(track_title, album, artist, track['file'])
 
                 track_query = get_track_by_hash(track_hash)
                 if not track_query:
@@ -219,7 +219,7 @@ def populate_db_from_mpd():
                                          duration=float(track['duration']) * 1000,  # Store time in ms
                                          track_num=track['track'],
                                          disc_num=track['disc'],
-                                         download_url=full_path,  # TODO: (CHECK) Use relative instead of full path
+                                         download_url=track['file'],
                                          bitrate=mutagen.File(full_path).info.bitrate / 1000,  # Store bitrate in kbps
                                          size=os.path.getsize(full_path),
                                          format=full_path.rpartition('.')[-1].lower(),

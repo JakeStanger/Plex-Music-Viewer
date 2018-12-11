@@ -56,5 +56,5 @@ def generate_album_hash(name: str, artist: str) -> int:
     return get_numbers(md5(('%s%s' % (name, artist)).encode('utf8')).hexdigest())
 
 
-def generate_track_hash(name: str, album: str, artist: str, full_path: str) -> int:
-    return get_numbers(md5(('%s%s%s%s' % (name, album, artist, full_path)).encode('utf8')).hexdigest())
+def generate_track_hash(name: str, album: str, artist: str, relative_path: str) -> int:
+    return get_numbers(md5(('%s%s%s%s' % (name, album, artist, relative_path)).encode('utf8')).hexdigest())
