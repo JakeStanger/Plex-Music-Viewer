@@ -298,12 +298,12 @@ def track(track_id: int):
 def track_file(track_id: int, download=False):
     track = db.get_track_by_id(track_id)
 
-    decoded = unquote(track.download_url)
+    file_path = settings['music_library'] + unquote(track.download_url)
 
     mime = Magic(mime=True)
-    mimetype = mime.from_file(decoded)
+    mimetype = mime.from_file(file_path)
 
-    return send_file(decoded, mimetype=mimetype,
+    return send_file(file_path, mimetype=mimetype,
                      as_attachment=download, attachment_filename='%s.%s' % (track.name, track.format))
 
 
@@ -560,19 +560,20 @@ def torrent(artist_name, album_name):
     return send_file(torrent_path, as_attachment=True, attachment_filename=album_name + '.torrent')
 
 
-@app.route('/zip/<int:album_id>', methods=['POST'])
-@app.route('/zip/<int:album_id>/<int:disc>', methods=['POST'])
-@app.route('/zip/<int:playlist_id>', methods=['POST'])
+@app.route('/zip/album/<int:album_id>', methods=['POST'])
+@app.route('/zip/album/<int:album_id>/<int:disc>', methods=['POST'])
+@app.route('/zip/playlist/<int:playlist_id>', methods=['POST'])
 @login_required
 @require_permission(db.Permission.music_can_download)
 def zip(album_id: int = None, playlist_id: int = None, disc: int = None):
     if album_id:
-        item = db.get_album_by_id(album_id)
-        filename = "/etc/pmv/zips/%s/%s.zip" % (album.artist_name, album.name)
+        album = db.get_album_by_id(album_id)
         if disc:
             tracks = db.get_album_disc_by_id(album_id, disc)
+            filename = "/etc/pmv/zips/%s/%s-%r.zip" % (album.artist_name, album.name, disc)
         else:
-            tracks = item.tracks
+            tracks = album.tracks
+            filename = "/etc/pmv/zips/%s/%s.zip" % (album.artist_name, album.name)
     else:
         item = db.get_playlist_by_id(playlist_id)
         tracks = item.tracks
@@ -584,7 +585,8 @@ def zip(album_id: int = None, playlist_id: int = None, disc: int = None):
     if not path.isfile(filename):
         z = ZipFile(filename, 'w')
         for track in tracks:
-            z.write(unquote(track.download_url))
+            print(settings['music_library'] + unquote(track.download_url))
+            z.write(settings['music_library'] + unquote(track.download_url))
         z.close()
 
     return send_file(filename, as_attachment=True, attachment_filename=album.name + '.zip')
