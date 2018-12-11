@@ -129,13 +129,16 @@
                     <form action="{{ url_for('add_to_playlist', track_id=track.id) }}" method="post">
                         <div class="form-group">
                             <!-- Single line formatting must be preserved to format the lyrics inside the texarea correctly. -->
-                            <label for="exampleFormControlSelect1">Select Playlist</label>
-                            <select class="form-control" id="exampleFormControlSelect1" name="playlist_id">
+                            <label for="selectPlaylist">Select Playlist</label>
+                            <select class="form-control" id="selectPlaylist" name="playlist_id">
+                                <option value="-1">New playlist...</option>
                                 {% for playlist in playlists %}
                                     <option value="{{ playlist.id }}">{{ playlist.name }}</option>
                                 {% endfor %}
-                                <option>New playlist...</option>
                             </select>
+                            <label for="newPlaylistName">New Playlist Name</label>
+                            <input class="form-control" id="newPlaylistName" name="playlist_name"
+                                   placeholder="Select 'New playlist...' to create a new playlist">
                         </div>
                         <hr>
                         <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>

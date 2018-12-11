@@ -340,23 +340,29 @@ def create_playlist(name: str):
 
 
 @app.route('/add_to_playlist/<int:playlist_id>/track/<int:track_id>', methods=['POST'])
+@app.route('/add_to_playlist/<int:playlist_id>/track/<int:track_id>/<string:playlist_name>', methods=['POST'])
 @app.route('/add_to_playlist/track/<int:track_id>', methods=['POST'])
+@app.route('/add_to_playlist/track/<int:track_id>/<string:playlist_name>', methods=['POST'])
 @login_required
 @require_permission(db.Permission.music_can_view)
-def add_to_playlist(track_id: int, playlist_id: int = None):
+def add_to_playlist(track_id: int, playlist_id: int = None, playlist_name: str = None):
     if not playlist_id:
-        playlist_id = request.form.get('playlist_id')
+        playlist_id = int(request.form.get('playlist_id'))
+
+    if playlist_id == -1:
+        if not playlist_name:
+            playlist_name = request.form.get('playlist_name')
+        playlist = db.Playlist(name=playlist_name, creator_id=get_current_user().id)
+    else:
+        playlist = db.get_playlist_by_id(playlist_id)
 
     track = db.get_track_by_id(track_id)
 
-    playlist = db.get_playlist_by_id(playlist_id)
-
-    print(playlist, track)
-
-    # TODO: Duplication checking!
-    playlist.tracks.append(track)
-
-    db.session().commit()
+    # Check track not already in playlist
+    f = [*filter(lambda track: track.id == track_id, playlist.tracks)]
+    if not f or len(f) == 0:
+        playlist.tracks.append(track)
+        db.session().commit()
 
     return redirect(request.referrer)
 
