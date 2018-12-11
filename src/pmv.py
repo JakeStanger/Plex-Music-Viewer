@@ -585,7 +585,7 @@ def zip(album_id: int = None, playlist_id: int = None, disc: int = None):
     if not path.isfile(filename):
         z = ZipFile(filename, 'w')
         for track in tracks:
-            z.write(settings['music_library'] + unquote(track.download_url))
+            z.write(settings['music_library'] + unquote(track.download_url), arcname=unquote(track.download_url))
         z.close()
 
     return send_file(filename, as_attachment=True, attachment_filename=album.name + '.zip')
