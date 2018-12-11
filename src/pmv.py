@@ -1,4 +1,5 @@
 import base64
+import datetime
 import logging
 import sched
 import sys
@@ -250,7 +251,7 @@ def artist(artist_id: int = None):
     if artist_id:
         artist = db.get_artist_by_id(artist_id)
         albums = artist.albums
-        albums.sort(key=lambda x: x.release_date, reverse=True)
+        albums.sort(key=lambda x: x.release_date or datetime.date(datetime.MINYEAR, 1, 1), reverse=True)
 
         return render_template('table.html', albums=albums, title=artist.name)
     else:
@@ -566,6 +567,9 @@ def torrent(artist_name, album_name):
 @login_required
 @require_permission(db.Permission.music_can_download)
 def zip(album_id: int = None, playlist_id: int = None, disc: int = None):
+    album: db.Album
+    playlist: db.Playlist
+
     if album_id:
         album = db.get_album_by_id(album_id)
         if disc:
@@ -588,7 +592,9 @@ def zip(album_id: int = None, playlist_id: int = None, disc: int = None):
             z.write(settings['music_library'] + unquote(track.download_url), arcname=unquote(track.download_url))
         z.close()
 
-    return send_file(filename, as_attachment=True, attachment_filename=album.name + '.zip')
+    return send_file(filename, as_attachment=True, attachment_filename='%s%s.zip'
+                                                                       % (album.name if album else playlist.name,
+                                                                          '-%s' % disc if disc else ''))
 
 
 @app.route('/image/<int:album_id>')
