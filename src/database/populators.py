@@ -73,8 +73,8 @@ def populate_db_from_plex():
                 print("┃ \t┣ " + track.title)
 
                 track_part: MediaPart = [*track.iterParts()][0]
-                track_hash = helper.generate_track_hash(track.title, album.title, artist.title,
-                                                        track_part.file.strip(pmv.settings['music_library']))
+                relative_path = track_part.file.replace(pmv.settings['music_library'], '')
+                track_hash = helper.generate_track_hash(track.title, album.title, artist.title, relative_path)
 
                 track_query = get_track_by_hash(track_hash)
                 if not track_query:
@@ -88,7 +88,7 @@ def populate_db_from_plex():
                                          duration=track.duration,
                                          track_num=track.index,
                                          disc_num=track.parentIndex,
-                                         download_url=track_part.file.strip(pmv.settings['music_library']),
+                                         download_url=relative_path,
                                          bitrate=media.bitrate,
                                          size=track_part.size,
                                          format=media.audioCodec,
