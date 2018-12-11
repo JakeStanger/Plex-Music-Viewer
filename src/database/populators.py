@@ -104,7 +104,7 @@ def _get_mpd_key(data, key):
     """
     Since MPD supports any tag being a list,
     we want to just get the first one.
-    Most of the time this is due to tagging issues
+    Most of the time this is due to tagging issues.
     """
     prop = data[key]
     if isinstance(prop, list):
