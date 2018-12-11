@@ -73,7 +73,8 @@ def populate_db_from_plex():
                 print("┃ \t┣ " + track.title)
 
                 track_part: MediaPart = [*track.iterParts()][0]
-                track_hash = helper.generate_track_hash(track.title, album.title, artist.title, track_part.file)
+                track_hash = helper.generate_track_hash(track.title, album.title, artist.title,
+                                                        track_part.file.strip(pmv.settings['music_library']))
 
                 track_query = get_track_by_hash(track_hash)
                 if not track_query:
