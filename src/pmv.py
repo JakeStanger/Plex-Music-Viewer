@@ -1,10 +1,11 @@
 import base64
 import datetime
 import logging
+import operator
 import sched
 import sys
 import time
-from functools import wraps
+from functools import wraps, reduce
 from logging import handlers
 from multiprocessing import Manager
 from os import path, makedirs
@@ -326,7 +327,8 @@ def playlist(playlist_id: int):
     playlist = db.get_playlist_by_id(playlist_id)
 
     return render_template('table.html', tracks=playlist.tracks, title=playlist.name, settings=settings,
-                           is_search=True)
+                           is_playlist=True, key=playlist_id,
+                           totalSize=reduce(operator.add, [track.size for track in playlist.tracks]))
 
 
 @app.route('/create_playlist/<string:name>')
@@ -573,33 +575,30 @@ def torrent(artist_name, album_name):
 @login_required
 @require_permission(db.Permission.music_can_download)
 def zip(album_id: int = None, playlist_id: int = None, disc: int = None):
-    album: db.Album
-    playlist: db.Playlist
-
     if album_id:
-        album = db.get_album_by_id(album_id)
+        item = db.get_album_by_id(album_id)
         if disc:
             tracks = db.get_album_disc_by_id(album_id, disc)
-            filename = "/etc/pmv/zips/%s/%s-%r.zip" % (album.artist_name, album.name, disc)
+            filename = "/etc/pmv/zips/%s/%s-%r.zip" % (item.artist_name, item.name, disc)
         else:
-            tracks = album.tracks
-            filename = "/etc/pmv/zips/%s/%s.zip" % (album.artist_name, album.name)
+            tracks = item.tracks
+            filename = "/etc/pmv/zips/%s/%s.zip" % (item.artist_name, item.name)
     else:
         item = db.get_playlist_by_id(playlist_id)
         tracks = item.tracks
-        filename = "/etc/pmv/zips/playlists/%s/%s.zip" % (playlist.creator, playlist.name)
+        filename = "/etc/pmv/zips/playlists/%s/%s.zip" % (item.creator, item.name)
 
     if not path.exists(path.dirname(filename)):
         makedirs(path.dirname(filename))
 
-    if not path.isfile(filename):
+    if not path.isfile(filename) or playlist_id:
         z = ZipFile(filename, 'w')
         for track in tracks:
             z.write(settings['music_library'] + unquote(track.download_url), arcname=unquote(track.download_url))
         z.close()
 
     return send_file(filename, as_attachment=True, attachment_filename='%s%s.zip'
-                                                                       % (album.name if album else playlist.name,
+                                                                       % (item.name,
                                                                           '-%s' % disc if disc else ''))
 
 

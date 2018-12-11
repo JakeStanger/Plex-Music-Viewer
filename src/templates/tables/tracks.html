@@ -1,7 +1,7 @@
 <audio id="audio" preload="auto"></audio>
 <div class="row">
     <!-- Page tools -->
-    {% if not is_search %}
+    {% if not is_search and not is_playlist %}
         <div class="col-md">
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb">
@@ -16,6 +16,20 @@
             <form class="form-inline my-2 my-lg-1 mr-1"
                   action="{{ url_for('zip', album_id=key) }}" method="post">
                 <button class="btn btn-outline-success my-sm-0" type="submit">Download album
+                    ({{ format_size(totalSize) }})
+                </button>
+            </form>
+            <form class="form-inline my-2 my-lg-1 ml-1"
+                  action="{{ url_for('torrent', artist_name=parentTitle, album_name=title) }}" method="post">
+                <button disabled class="btn btn-outline-success my-sm-0" type="submit">Download torrent</button>
+            </form>
+        </div>
+    {% endif %}
+    {% if is_playlist %}
+        <div class="row col-md">
+            <form class="form-inline my-2 my-lg-1 mr-1"
+                  action="{{ url_for('zip', playlist_id=key) }}" method="post">
+                <button class="btn btn-outline-success my-sm-0" type="submit">Download playlist
                     ({{ format_size(totalSize) }})
                 </button>
             </form>
@@ -43,7 +57,7 @@
     {% set last = tracks|last %}
     {% set discs = [0] %}
     {% for track in tracks %}
-        {% if not is_search %}
+        {% if not is_search and not is_playlist %}
             {% if int(last.disc_num) > 1 and int(track.disc_num) != int(discs|last) %}
                 <tr class='discrow'>
                     <td>
