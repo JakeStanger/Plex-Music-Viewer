@@ -100,7 +100,7 @@
     <td>{{ track.bitrate }}kbps</td>
     <td>{{ track.format }}</td>
     <td>{{ format_size(track.size) }}</td>
-    {% if is_search %}
+    {% if is_search or is_playlist %}
         <td><a href="{{ url_for('album', album_id=track.album_key) }}">{{ track.album_name }}</a></td>
         <td><a href="{{ url_for('artist', artist_id=track.artist_key) }}">{{ track.artist_name }}</a>
         </td>
