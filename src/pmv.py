@@ -57,48 +57,6 @@ app.jinja_env.globals.update(lyrics=get_song_lyrics)
 manager = Manager()
 _update_stack = manager.list()
 
-# def trigger_database_update():
-#     cache = db.get_cache()
-#     if len(cache) > 0:
-#         db.update_after_refresh(cache)
-#         db.clear_cache()
-
-
-# def listen(msg):
-#     if msg['type'] == 'timeline':
-#         timeline_entry = msg['TimelineEntry'][0]
-#
-#         # item = ph.get_by_key(timeline_entry['itemID'])
-#         # type = ph.Type(timeline_entry['type']).name
-#
-#         # _update_stack.append({item: type})
-#
-#         # print(msg)
-#
-#         state = timeline_entry['metadataState']
-#
-#         data = {
-#             'section_id': timeline_entry['sectionID'],
-#             'library_key': timeline_entry['itemID'],
-#             'type': ph.Type(timeline_entry['type']),
-#             # 'deleted': state == 'deleted',
-#         }
-#
-#         # print(data)
-#
-#         if data not in _update_stack:
-#             _update_stack.append(data)
-#
-#         print(_update_stack)
-#     #
-#     #     db.update_after_refresh([data])
-#     #
-#     #     if 'updatedAt' in timeline_entry:
-#     #
-#     #
-#     elif msg['type'] == 'backgroundProcessingQueue':
-#         update_database()
-#
 
 # Load settings
 try:
@@ -235,3 +193,47 @@ if __name__ == "__main__":
     app.run(debug=False)
 
     # db_updater.join()
+
+# OLD PLEX EVENT LISTENER
+# def trigger_database_update():
+#     cache = db.get_cache()
+#     if len(cache) > 0:
+#         db.update_after_refresh(cache)
+#         db.clear_cache()
+
+
+# def listen(msg):
+#     if msg['type'] == 'timeline':
+#         timeline_entry = msg['TimelineEntry'][0]
+#
+#         # item = ph.get_by_key(timeline_entry['itemID'])
+#         # type = ph.Type(timeline_entry['type']).name
+#
+#         # _update_stack.append({item: type})
+#
+#         # print(msg)
+#
+#         state = timeline_entry['metadataState']
+#
+#         data = {
+#             'section_id': timeline_entry['sectionID'],
+#             'library_key': timeline_entry['itemID'],
+#             'type': ph.Type(timeline_entry['type']),
+#             # 'deleted': state == 'deleted',
+#         }
+#
+#         # print(data)
+#
+#         if data not in _update_stack:
+#             _update_stack.append(data)
+#
+#         print(_update_stack)
+#     #
+#     #     db.update_after_refresh([data])
+#     #
+#     #     if 'updatedAt' in timeline_entry:
+#     #
+#     #
+#     elif msg['type'] == 'backgroundProcessingQueue':
+#         update_database()
+#
