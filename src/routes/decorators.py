@@ -18,6 +18,7 @@ def require_permission(permission: db.Permission,
     """
 
     def permission_wrapper(func):
+        @login_required
         @wraps(func)
         def permission_inner(*args, **kwargs):
             user = get_user_func()
@@ -35,6 +36,7 @@ def require_permission(permission: db.Permission,
 
 # @login_required
 def admin_required(func, get_user=get_current_user):
+    @login_required
     @wraps(func)
     def admin_wrapper(*args, **kwargs):
         user = get_user()
