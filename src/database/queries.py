@@ -25,16 +25,22 @@ def add_user(username, password):
     add_single(User(username=username, password=password, api_key=helper.generate_secret_key()))
 
 
-def get_user_by_id(key: int):
-    return db.session.query(User).filter_by(id=key).first()
+def get_user_by_id(key: int, include_deleted=False):
+    if include_deleted:
+        return db.session.query(User).filter_by(id=key).first()
+    else:
+        return db.session.query(User).filter(db.and_(User.id == key, User.is_deleted == False)).first()
 
 
 def get_user_by_api_key(api_key: str):
     return db.session.query(User).filter_by(api_key=api_key).first()
 
 
-def get_user_by_username(username: str):
-    return db.session.query(User).filter_by(username=username).first()
+def get_user_by_username(username: str, include_deleted=False):
+    if include_deleted:
+        return db.session.query(User).filter_by(username=username).first()
+    else:
+        return db.session.query(User).filter(db.and_(User.username == username, User.is_deleted == False)).first()
 
 
 def edit_user_by_id(key: int, fields: dict):
