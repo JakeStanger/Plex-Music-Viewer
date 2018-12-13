@@ -2,8 +2,8 @@
 
 {% block body %}
     {% for playlist in playlists %}
-        <p><a href="{{ url_for('playlist', playlist_id=playlist.id) }}">{{playlist.name}}</a></p>
+        <p><a href="{{ url_for('music.playlist', playlist_id=playlist.id) }}">{{playlist.name}}</a></p>
     {% endfor %}
     <hr>
-    <a href="{{ url_for('create_playlist', name="Test Playlist")}}">Create Playlist</a>
+    <a href="{{ url_for('music.create_playlist', name="Test Playlist")}}">Create Playlist</a>
 {% endblock %}

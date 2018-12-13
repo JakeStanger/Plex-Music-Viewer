@@ -1,7 +1,7 @@
 {% if not is_search %}
     <nav aria-label="breadcrumb">
         <ol class="breadcrumb">
-            <li class="breadcrumb-item"><a href="{{ url_for('artist') }}">Artists</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('music.artist') }}">Artists</a></li>
             <li class="breadcrumb-item active" aria-current="page">{{ title }}</li>
         </ol>
     </nav>
@@ -18,12 +18,12 @@
     </tr>
     {% for album in albums %}
         <tr>
-            <td><a href="{{ url_for('album', album_id=album.id) }}">{{ album.name }}</a></td>
+            <td><a href="{{ url_for('music.album', album_id=album.id) }}">{{ album.name }}</a></td>
             <td>{{ (album.release_date if album.release_date.month != 1 and album.release_date.day != 1
                     else album.release_date.year) if album.release_date else 'N/A' }}</td>
             <td>{{ album.track_count }}</td>
             {% if is_search %}
-                <td><a href="{{ url_for('artist', artist_key=album.artist_key) }}">{{ album.artist_name }}</a></td>
+                <td><a href="{{ url_for('music.artist', artist_key=album.artist_key) }}">{{ album.artist_name }}</a></td>
             {% endif %}
         </tr>
     {% endfor %}

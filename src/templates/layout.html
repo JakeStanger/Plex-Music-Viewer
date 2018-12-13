@@ -11,7 +11,7 @@
 </head>
 <body>
 <nav class="navbar navbar-expand-lg navbar-light bg-light">
-    <a class="navbar-brand" href="{{ url_for('index') }}">Media Download</a>
+    <a class="navbar-brand" href="{{ url_for('main.index') }}">Media Download</a>
     <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent"
             aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
         <span class="navbar-toggler-icon"></span>
@@ -20,7 +20,7 @@
     <div class="collapse navbar-collapse" id="navbarSupportedContent">
         <ul class="navbar-nav mr-auto">
             <li class="nav-item">
-                <a class="nav-link" href="{{ url_for('artist') }}">Music <span class="sr-only">(current)</span></a>
+                <a class="nav-link" href="{{ url_for('music.artist') }}">Music <span class="sr-only">(current)</span></a>
             </li>
             {% if current_user.is_authenticated %}
                 <li class="nav-item dropdown">
@@ -29,11 +29,11 @@
                         Account
                     </a>
                     <div class="dropdown-menu" aria-labelledby="accountDropdown">
-                        <a class="dropdown-item" href="{{ url_for('profile') }}">Profile</a>
-                        <a class="dropdown-item" href="{{ url_for('playlists') }}">Playlists</a>
+                        <a class="dropdown-item" href="{{ url_for('users.profile') }}">Profile</a>
+                        <a class="dropdown-item" href="{{ url_for('music.playlists') }}">Playlists</a>
                         {% if current_user.is_admin %}
                             <div class="dropdown-divider"></div>
-                            <a class="dropdown-item" href="{{ url_for('admin') }}">Admin area</a>
+                            <a class="dropdown-item" href="{{ url_for('main.admin') }}">Admin area</a>
                         {% endif %}
                     </div>
                 </li>
@@ -44,11 +44,11 @@
          Hi {{ current_user.username|title }}
     </span>
             <span class="navbar-text">
-            <a class="nav-link" href="{{ url_for('logout') }}">Log out</a>
+            <a class="nav-link" href="{{ url_for('users.logout') }}">Log out</a>
         </span>
         {% endif %}
 
-        <form class="form-inline my-2 my-lg-0 ml-2" action="{{ url_for('search') }}" method="post">
+        <form class="form-inline my-2 my-lg-0 ml-2" action="{{ url_for('music.search') }}" method="post">
             <input name="query" class="form-control mr-sm-2" type="search" placeholder="Search" aria-label="Search">
             {#      <button class="btn btn-outline-success my-2 my-sm-0" type="submit">Search</button>#}
         </form>

@@ -2,7 +2,7 @@ import math
 import string
 from _md5 import md5
 import secrets
-
+import database as db
 from flask import abort, Response
 
 
@@ -17,6 +17,16 @@ def throw_error(num: int, error):
     :param error: An error message
     """
     abort(Response(error, num))
+
+
+def get_current_user() -> db.User:
+    """
+    Imports the current user from Flask and returns it.
+    Used outside of requests where current_user is otherwise None.
+    :return: The current user.
+    """
+    from flask_login import current_user
+    return current_user
 
 
 def format_size(size: int) -> str:

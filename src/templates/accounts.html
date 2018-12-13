@@ -24,7 +24,7 @@
             <div class="tab-content" id="myTabContent">
                 <!-- Login -->
                 <div class="tab-pane show active" id="login" role="tabpanel" aria-labelledby="login-tab">
-                    <form action="{{ url_for('login') }}" method=post class="form-signin">
+                    <form action="{{ url_for('users.login') }}" method=post class="form-signin">
                         <h2 class="form-signin-heading">Sign in</h2>
 
                         <label for="inputUsername" class="sr-only">Username</label>
@@ -43,7 +43,7 @@
                 </div>
                 <!-- Sign up -->
                 <div class="tab-pane" id="signup" role="tabpanel" aria-labelledby="signup-tab">
-                    <form action="{{ url_for('sign_up') }}" method=post class="form-signin">
+                    <form action="{{ url_for('users.sign_up') }}" method=post class="form-signin">
                         <h2 class="form-signin-heading">Sign up</h2>
 
                         <label for="inputUsername" class="sr-only">Username</label>

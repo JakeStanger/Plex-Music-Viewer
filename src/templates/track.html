@@ -14,7 +14,7 @@
         <div class="container-fluid">
             <div class="row">
                 <div class="col-12 col-sm-3 album-art">
-                    <img src="{{ url_for('image', album_id=track.album_key, width=200) }}">
+                    <img src="{{ url_for('media.image', album_id=track.album_key, width=200) }}">
                 </div>
                 <div class="col-12 col-md-9 col-lg-6">
                     <h1 class="display-4">{{ track.track_num }} - {{ track.name }}</h1>
@@ -23,11 +23,11 @@
                 <div class="col-12 col-lg-3">
                     <button class="btn btn-round"
                             style="background-color: {{ button_colour }}; color: {{ text_colour }};"
-                            onclick="play(`{{ url_for('track_file', track_id=track.id) }}`)" title="Play/Pause">
+                            onclick="play(`{{ url_for('music.track_file', track_id=track.id) }}`)" title="Play/Pause">
                         <span id="play" class="oi oi-media-play"></span>
                     </button>
                     <a class="btn btn-round" style="background-color: {{ button_colour }}; color: {{ text_colour }};"
-                       href="{{ url_for('track_file', track_id=track.id, download='download') }}" title="Download">
+                       href="{{ url_for('music.track_file', track_id=track.id, download='download') }}" title="Download">
                         <span class="oi oi-data-transfer-download" style="top: 17%;"></span></a>
                     <a class="btn btn-round" style="background-color: {{ button_colour }}; color: {{ text_colour }};"
                        data-toggle="modal" data-target="#addToPlaylist" title="Add to Playlist">
@@ -40,11 +40,11 @@
 {% block body %}
     <nav aria-label="breadcrumb">
         <ol class="breadcrumb">
-            <li class="breadcrumb-item"><a href="{{ url_for('artist') }}">Artists</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('music.artist') }}">Artists</a></li>
             <li class="breadcrumb-item"><a
-                    href="{{ url_for('artist', artist_id=track.artist_key) }}">{{ track.artist_name }}</a></li>
+                    href="{{ url_for('music.artist', artist_id=track.artist_key) }}">{{ track.artist_name }}</a></li>
             <li class="breadcrumb-item"><a
-                    href="{{ url_for('album', album_id=track.album_key) }}">{{ track.album_name }}</a>
+                    href="{{ url_for('music.album', album_id=track.album_key) }}">{{ track.album_name }}</a>
             </li>
             <li class="breadcrumb-item active" aria-current="page">{{ track.name }}</li>
         </ol>
@@ -101,7 +101,7 @@
                     </button>
                 </div>
                 <div class="modal-body">
-                    <form action="{{ url_for('edit_lyrics', track_id=track.id) }}" method="post">
+                    <form action="{{ url_for('music.edit_lyrics', track_id=track.id) }}" method="post">
                         <div class="form-group">
                             <!-- Single line formatting must be preserved to format the lyrics inside the texarea correctly. -->
                             <textarea name="lyrics" class="form-control" style="min-width: 100%;"
@@ -126,7 +126,7 @@
                     </button>
                 </div>
                 <div class="modal-body">
-                    <form action="{{ url_for('add_to_playlist', track_id=track.id) }}" method="post">
+                    <form action="{{ url_for('music.add_to_playlist', track_id=track.id) }}" method="post">
                         <div class="form-group">
                             <!-- Single line formatting must be preserved to format the lyrics inside the texarea correctly. -->
                             <label for="selectPlaylist">Select Playlist</label>
@@ -154,7 +154,7 @@
     <script src="{{ url_for('static', filename='js/jquery.tabledit.min.js') }}"></script>
     <script>
         $('#metadata_table').Tabledit({
-            url: "{{ url_for('update_metadata', track_id=track.id) }}",
+            url: "{{ url_for('music.update_metadata', track_id=track.id) }}",
             editButton: false,
             deleteButton: false,
             columns: {
