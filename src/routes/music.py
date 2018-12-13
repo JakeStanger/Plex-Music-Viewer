@@ -143,7 +143,7 @@ def edit_lyrics(track_id: int):
     lyrics.update_lyrics(current_track, request.form.get('lyrics'))
 
     flash('Lyrics successfully updated', category='success')
-    return redirect(url_for('track', track_id=track_id))
+    return redirect(url_for('music.track', track_id=track_id))
 
 
 @bp.route('/edit_metadata/<int:track_id>', methods=['POST'])

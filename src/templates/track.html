@@ -14,7 +14,7 @@
         <div class="container-fluid">
             <div class="row">
                 <div class="col-12 col-sm-3 album-art">
-                    <img src="{{ url_for('media.image', album_id=track.album_key, width=200) }}">
+                    <img alt="{{ track.album_name }}" src="{{ url_for('media.image', album_id=track.album_key, width=200) }}">
                 </div>
                 <div class="col-12 col-md-9 col-lg-6">
                     <h1 class="display-4">{{ track.track_num }} - {{ track.name }}</h1>

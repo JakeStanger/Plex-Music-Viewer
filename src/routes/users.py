@@ -23,7 +23,7 @@ def login():
         if user:
             if check_password_hash(user.password, password):
                 login_user(user, remember)
-                return redirect(request.args.get('next') or url_for('index'))
+                return redirect(request.args.get('next') or url_for('main.index'))
             else:
                 flash("Incorrect password", category='error')
                 display_flash = True
@@ -46,7 +46,7 @@ def sign_up():
     # if len(data) == 0:
     user = pmv.get_user(username)
     login_user(user, remember)
-    return redirect(url_for('index'))
+    return redirect(url_for('main.index'))
     # else:
     #   return dumps({'error': str(data[0])})
 
@@ -55,7 +55,7 @@ def sign_up():
 @login_required
 def logout():
     logout_user()
-    return redirect(url_for('index'))
+    return redirect(url_for('main.index'))
 
 
 @bp.route('/profile')

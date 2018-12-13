@@ -132,7 +132,7 @@ if settings['backends']['plex']['server_token']:
 logger.debug("Creating login manager.")
 login_manager = LoginManager()
 login_manager.init_app(app)
-login_manager.login_view = 'login'
+login_manager.login_view = 'users.login'
 
 logger.debug("Setting musicbrainz useragent.")
 musicbrainz.set_useragent('Plex Music Viewer', '0.1',
