@@ -64,7 +64,8 @@
                         <div class="row">
                             <div class="col-4">
                                 <form class="form-inline my-2 my-lg-1 mr-1"
-                                      action="{{ url_for('album.zip', album_id=key, disc=track.disc_num) }}" method="post">
+                                      action="{{ url_for('album.zip', album_id=key, disc=track.disc_num) }}"
+                                      method="post">
                                     <button class="btn btn-link" type="submit"><span
                                             class="oi oi-data-transfer-download"></span>
                                     </button>
