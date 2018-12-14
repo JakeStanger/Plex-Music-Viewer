@@ -37,9 +37,25 @@
         </tbody>
     </table>
     <hr>
-    {% for route in routes %}
-        <p>{{ route }}</p>
-    {% endfor %}
+    <table class="table table-striped">
+        <thead>
+        <tr>
+            <th>Name</th>
+            <th>URL</th>
+            <th>Methods</th>
+        </tr>
+
+        </thead>
+        <tbody>
+            {% for route in routes %}
+                <tr>
+                    <td>{{ route.endpoint }}</td>
+                    <td>{{ route.rule }}</td>
+                    <td>{{ route.methods }}</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
 {#    <form class="form-inline my-2 my-lg-1 mr-1" action="{{ url_for('update_database') }}" method="post">#}
 {#        <button class="btn btn-outline-success my-sm-0" type="submit" disabled>Update Database</button>#}
 {#    </form>#}

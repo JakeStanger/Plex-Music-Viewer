@@ -162,6 +162,7 @@ if __name__ == "__main__":
     scheduler = sched.scheduler(time.time)
     parser = argparse.ArgumentParser()
     parser.add_argument('-u', '--update', action='store_true', help='Update the database and exit')
+    parser.add_argument('-l', '--list-routes', action='store_true', help='Dump all the Flask routes and exit')
 
     args = parser.parse_args()
 
@@ -172,6 +173,11 @@ if __name__ == "__main__":
                 db.populate_db_from_plex()
             if settings['backends']['mpd']['enable']:
                 db.populate_db_from_mpd()
+            sys.exit()
+    elif args.list_routes:
+        with app.app_context():
+            for rule in app.url_map.iter_rules():
+                print('%s\t%s\t%s' % (rule.endpoint, rule.rule, rule.methods))
             sys.exit()
 
     # def run_process_update_stack(update_stack):
