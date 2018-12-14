@@ -14,7 +14,7 @@
         </div>
         <div class="row col-md">
             <form class="form-inline my-2 my-lg-1 mr-1"
-                  action="{{ url_for('media.zip', album_id=key) }}" method="post">
+                  action="{{ url_for('album.zip', album_id=key) }}" method="post">
                 <button class="btn btn-outline-success my-sm-0" type="submit">Download album
                     ({{ format_size(totalSize) }})
                 </button>
@@ -28,7 +28,7 @@
     {% if is_playlist %}
         <div class="row col-md">
             <form class="form-inline my-2 my-lg-1 mr-1"
-                  action="{{ url_for('media.zip', playlist_id=key) }}" method="post">
+                  action="{{ url_for('playlist.zip', playlist_id=key) }}" method="post">
                 <button class="btn btn-outline-success my-sm-0" type="submit">Download playlist
                     ({{ format_size(totalSize) }})
                 </button>
@@ -64,7 +64,7 @@
                         <div class="row">
                             <div class="col-4">
                                 <form class="form-inline my-2 my-lg-1 mr-1"
-                                      action="{{ url_for('media.zip', album_id=key, disc=track.disc_num) }}" method="post">
+                                      action="{{ url_for('album.zip', album_id=key, disc=track.disc_num) }}" method="post">
                                     <button class="btn btn-link" type="submit"><span
                                             class="oi oi-data-transfer-download"></span>
                                     </button>
@@ -87,21 +87,21 @@
             {{ track.track_num }}
         </div>
         <div class="btn-group" role="group">
-            <button class="btn btn-link" onclick="play(`{{ url_for('music.track_file', track_id=track.id) }}`);">
+            <button class="btn btn-link" onclick="play(`{{ url_for('track.track_file', track_id=track.id) }}`);">
                 <span id="play-{{ track.id }}"
                       class="oi oi-media-play"></span></button>
-            <a class="btn btn-link" href="{{ url_for('music.track_file', track_id=track.id, download='1') }}">
+            <a class="btn btn-link" href="{{ url_for('track.track_file', track_id=track.id, download='1') }}">
                 <span class="oi oi-data-transfer-download"></span></a>
         </div>
 
     </td>
-    <td><a href="{{ url_for('music.track', track_id=track.id) }}">{{ track.name }}</a></td>
+    <td><a href="{{ url_for('track.track', track_id=track.id) }}">{{ track.name }}</a></td>
     <td>{{ format_duration(track.duration) }}</td>
     <td>{{ track.bitrate }}kbps</td>
     <td>{{ track.format }}</td>
     <td>{{ format_size(track.size) }}</td>
     {% if is_search or is_playlist %}
-        <td><a href="{{ url_for('music.album', album_id=track.album_key) }}">{{ track.album_name }}</a></td>
+        <td><a href="{{ url_for('album.album', album_id=track.album_key) }}">{{ track.album_name }}</a></td>
         <td><a href="{{ url_for('music.artist', artist_id=track.artist_key) }}">{{ track.artist_name }}</a>
         </td>
     {% endif %}

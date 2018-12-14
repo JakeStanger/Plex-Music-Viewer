@@ -7,11 +7,13 @@ from flask import Blueprint, send_file
 # from pmv import settings
 import database as db
 from .decorators import require_permission
+from .music import bp as ms, pl, al
 from json import dumps
 
 bp = Blueprint('media', __name__)
 
 
+# TODO: Scrap or rework big-time
 @bp.route('/torrent/<artist_name>/<album_name>', methods=['POST'])
 @require_permission(db.Permission.music_can_download)
 def torrent(artist_name, album_name):
@@ -20,9 +22,9 @@ def torrent(artist_name, album_name):
     return send_file(torrent_path, as_attachment=True, attachment_filename=album_name + '.torrent')
 
 
-@bp.route('/zip/album/<int:album_id>', methods=['POST'])
-@bp.route('/zip/album/<int:album_id>/<int:disc>', methods=['POST'])
-@bp.route('/zip/playlist/<int:playlist_id>', methods=['POST'])
+@al.route('/<int:album_id>/zip', methods=['POST'])
+@al.route('/<int:album_id>/zip/<int:disc>', methods=['POST'])
+@pl.route('/<int:playlist_id>/zip/', methods=['POST'])
 @require_permission(db.Permission.music_can_download)
 def zip(album_id: int = None, playlist_id: int = None, disc: int = None):
     import pmv
@@ -53,13 +55,13 @@ def zip(album_id: int = None, playlist_id: int = None, disc: int = None):
                                                                           '-%s' % disc if disc else ''))
 
 
-@bp.route('/image/<int:album_id>')
-@bp.route('/image/<int:album_id>/<width>')
-@bp.route('/image/<string:artist_name>/<string:album_name>')
-@bp.route('/image/<string:artist_name>/<string:album_name>/<int:width>')
+@al.route('/<int:album_id>/image')
+@al.route('/<int:album_id>/image/<int:width>')
+@ms.route('/image/<string:artist_name>/<string:album_name>')
+@ms.route('/image/<string:artist_name>/<string:album_name>/<int:width>')
 # @login_required
 # @require_permission(db.PermissionType.MUSIC, db.Permission.VIEW)
-def image(album_id: int = None, artist_name: str = None, album_name: str = None, width=None):
+def image(album_id: int = None, artist_name: str = None, album_name: str = None, width: int = None):
     import images
     if artist_name and album_name:
         album = db.get_album_by_name(artist_name, album_name)

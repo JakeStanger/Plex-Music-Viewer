@@ -32,16 +32,19 @@ logger.info("Creating Flask object.")
 app = Flask(__name__)  # TODO Implement logging throughout application
 
 # Register blueprints
-
 app.register_blueprint(routes.main.bp)
-
-# from routes.users import users
 app.register_blueprint(routes.users.bp)
+
 app.register_blueprint(routes.music.bp)
+app.register_blueprint(routes.music.al)
+app.register_blueprint(routes.music.tr)
+app.register_blueprint(routes.music.pl)
+
 app.register_blueprint(routes.media.bp)
 
 app.url_map.strict_slashes = False
 
+# Register functions required inside jinja
 app.jinja_env.globals.update(int=int)
 app.jinja_env.globals.update(format_duration=format_duration)
 app.jinja_env.globals.update(format_size=format_size)

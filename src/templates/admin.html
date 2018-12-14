@@ -36,6 +36,10 @@
         {% endfor %}
         </tbody>
     </table>
+    <hr>
+    {% for route in routes %}
+        <p>{{ route }}</p>
+    {% endfor %}
 {#    <form class="form-inline my-2 my-lg-1 mr-1" action="{{ url_for('update_database') }}" method="post">#}
 {#        <button class="btn btn-outline-success my-sm-0" type="submit" disabled>Update Database</button>#}
 {#    </form>#}

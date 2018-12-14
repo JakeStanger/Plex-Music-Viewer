@@ -11,6 +11,9 @@ from helper import get_current_user
 from .decorators import require_permission
 
 bp = Blueprint('music', __name__, url_prefix='/music')
+al = Blueprint('album', __name__, url_prefix='/music/album')
+tr = Blueprint('track', __name__, url_prefix='/music/track')
+pl = Blueprint('playlist', __name__, url_prefix='/music/playlist')
 
 
 @bp.route('/artist')
@@ -30,7 +33,7 @@ def artist(artist_id: int = None):
         return render_template('table.html', artists=artists, title="Artists")
 
 
-@bp.route("/album/<int:album_id>")
+@al.route("/<int:album_id>")
 @require_permission(db.Permission.music_can_view)
 def album(album_id: int):
     import pmv
@@ -42,7 +45,7 @@ def album(album_id: int):
                            parentTitle=album.artist_name, settings=pmv.settings, totalSize=album.total_size())
 
 
-@bp.route("/track/<int:track_id>")
+@tr.route("/<int:track_id>")
 def track(track_id: int):
     import images
     import lyrics
@@ -61,8 +64,8 @@ def track(track_id: int):
                            .split('\n'), playlists=playlists)
 
 
-@bp.route("/track_file/<int:track_id>")
-@bp.route("/track_file/<int:track_id>/<download>")
+@tr.route("/<int:track_id>/file")
+@tr.route("/<int:track_id>/file/<download>")
 @require_permission(db.Permission.music_can_download)
 def track_file(track_id: int, download=False):
     import pmv
@@ -77,7 +80,7 @@ def track_file(track_id: int, download=False):
                      as_attachment=download, attachment_filename='%s.%s' % (track.name, track.format))
 
 
-@bp.route('/playlists')
+@pl.route('/')
 @require_permission(db.Permission.music_can_view)
 def playlists():
     playlists = db.get_playlists_by_user(get_current_user()) or []
@@ -87,7 +90,7 @@ def playlists():
     return render_template('playlists.html', playlists=playlists, test_tracks=test_tracks)
 
 
-@bp.route('/playlist/<int:playlist_id>')
+@pl.route('/<int:playlist_id>')
 @require_permission(db.Permission.music_can_view)
 def playlist(playlist_id: int):
     import pmv
@@ -98,7 +101,7 @@ def playlist(playlist_id: int):
                            totalSize=reduce(operator.add, [track.size for track in playlist.tracks]))
 
 
-@bp.route('/create_playlist/<string:name>')
+@pl.route('/add/<string:name>', methods=['POST'])
 @require_permission(db.Permission.music_can_view)
 def create_playlist(name: str):
     playlist = db.Playlist(name=name, creator_id=get_current_user().id)
@@ -107,10 +110,10 @@ def create_playlist(name: str):
     return redirect(request.referrer)
 
 
-@bp.route('/add_to_playlist/<int:playlist_id>/track/<int:track_id>', methods=['POST'])
-@bp.route('/add_to_playlist/<int:playlist_id>/track/<int:track_id>/<string:playlist_name>', methods=['POST'])
-@bp.route('/add_to_playlist/track/<int:track_id>', methods=['POST'])
-@bp.route('/add_to_playlist/track/<int:track_id>/<string:playlist_name>', methods=['POST'])
+@pl.route('/<int:playlist_id>/add/<int:track_id>', methods=['POST'])
+@pl.route('/<int:playlist_id>/add/<int:track_id>/<string:playlist_name>', methods=['POST'])
+@pl.route('/add/<int:track_id>', methods=['POST'])
+@pl.route('/add/<int:track_id>/<string:playlist_name>', methods=['POST'])
 @require_permission(db.Permission.music_can_view)
 def add_to_playlist(track_id: int, playlist_id: int = None, playlist_name: str = None):
     if not playlist_id:
@@ -134,7 +137,7 @@ def add_to_playlist(track_id: int, playlist_id: int = None, playlist_name: str =
     return redirect(request.referrer)
 
 
-@bp.route('/edit_lyrics/<int:track_id>', methods=['POST'])
+@tr.route('/<int:track_id>/lyrics', methods=['POST'])
 @require_permission(db.Permission.music_can_edit)
 def edit_lyrics(track_id: int):
     import lyrics
@@ -146,7 +149,7 @@ def edit_lyrics(track_id: int):
     return redirect(url_for('music.track', track_id=track_id))
 
 
-@bp.route('/edit_metadata/<int:track_id>', methods=['POST'])
+@tr.route('/<int:track_id>/metadata', methods=['POST'])
 @require_permission(db.Permission.music_can_edit)
 def update_metadata(track_id: int):
     print(request.form)

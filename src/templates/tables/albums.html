@@ -18,7 +18,7 @@
     </tr>
     {% for album in albums %}
         <tr>
-            <td><a href="{{ url_for('music.album', album_id=album.id) }}">{{ album.name }}</a></td>
+            <td><a href="{{ url_for('album.album', album_id=album.id) }}">{{ album.name }}</a></td>
             <td>{{ (album.release_date if album.release_date.month != 1 and album.release_date.day != 1
                     else album.release_date.year) if album.release_date else 'N/A' }}</td>
             <td>{{ album.track_count }}</td>
