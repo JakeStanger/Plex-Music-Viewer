@@ -90,7 +90,7 @@ def delete_user_by_username(username: str, restore=False):
     db.session.commit()
 
 
-def get_artists():
+def get_artists() -> List[Artist]:
     return db.session.query(Artist).all()
 
 
