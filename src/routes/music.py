@@ -8,7 +8,7 @@ from magic import Magic
 
 import database as db
 from helper import get_current_user
-from .decorators import require_permission
+from .helpers import require_permission, get_json_response, wants_html
 
 bp = Blueprint('music', __name__, url_prefix='/music')
 al = Blueprint('album', __name__, url_prefix='/music/album')
@@ -25,12 +25,18 @@ def artist(artist_id: int = None):
         albums = artist.albums
         albums.sort(key=lambda x: x.release_date or datetime.date(datetime.MINYEAR, 1, 1), reverse=True)
 
-        return render_template('table.html', albums=albums, title=artist.name)
+        if 'text/html' in request.accept_mimetypes:
+            return_data = render_template('table.html', albums=albums, title=artist.name)
+        else:
+            return_data = get_json_response(albums)
     else:
         artists = db.get_artists()
         artists.sort(key=lambda x: x.name_sort)
-
-        return render_template('table.html', artists=artists, title="Artists")
+        if wants_html():
+            return_data = render_template('table.html', artists=artists, title="Artists")
+        else:
+            return_data = get_json_response(artists)
+    return return_data
 
 
 @al.route("/<int:album_id>")
@@ -41,8 +47,11 @@ def album(album_id: int):
     tracks = album.tracks
     tracks = sorted(tracks, key=lambda x: (x.disc_num, x.track_num))
 
-    return render_template('table.html', tracks=tracks, title=album.name, key=album.id, parentKey=album.artist_key,
-                           parentTitle=album.artist_name, settings=pmv.settings, totalSize=album.total_size())
+    if wants_html():
+        return render_template('table.html', tracks=tracks, title=album.name, key=album.id, parentKey=album.artist_key,
+                               parentTitle=album.artist_name, settings=pmv.settings, totalSize=album.total_size())
+    else:
+        return get_json_response(tracks)
 
 
 @tr.route("/<int:track_id>")
@@ -58,10 +67,13 @@ def track(track_id: int):
     button_colour = images.get_button_colour(banner_colour)
     text_colour = images.get_text_colour(banner_colour)
 
-    return render_template('track.html', track=track,
-                           banner_colour=banner_colour, text_colour=text_colour, button_colour=button_colour,
-                           lyrics=lyrics.get_song_lyrics(track)
-                           .split('\n'), playlists=playlists)
+    if wants_html():
+        return render_template('track.html', track=track,
+                               banner_colour=banner_colour, text_colour=text_colour, button_colour=button_colour,
+                               lyrics=lyrics.get_song_lyrics(track)
+                               .split('\n'), playlists=playlists)
+    else:
+        return get_json_response(track, max_depth=1)
 
 
 @tr.route("/<int:track_id>/file")
