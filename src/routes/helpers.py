@@ -1,3 +1,4 @@
+import json
 from functools import wraps
 from flask import jsonify, request
 from jsonpickle import encode
@@ -48,8 +49,14 @@ def admin_required(func, get_user=get_current_user):
     return admin_wrapper
 
 
-def get_json_response(obj, max_depth: int = 2):
-    return jsonify(encode(obj, unpicklable=False, max_depth=max_depth))
+def get_json_response(obj, max_depth: int = 2, append: dict = None):
+    encoded = encode(obj, unpicklable=False, max_depth=max_depth)
+    if append:
+        encoded = json.loads(encoded)
+        for key in append:
+            encoded[key] = append[key]
+        encoded = encode(encoded, unpicklable=False, max_depth=2)
+    return jsonify(encoded)
 
 
 def wants_html():
