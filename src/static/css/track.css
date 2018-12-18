@@ -9,6 +9,11 @@
     overflow: hidden;
     justify-content: center;
     justify-items: center;
+    box-shadow: 2px 2px #bcbcbc;
+}
+
+.btn-round:hover {
+    box-shadow: 1px 1px #bcbcbc;
 }
 
 .lyrics {
