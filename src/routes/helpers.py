@@ -1,12 +1,12 @@
 from functools import wraps
-
+from flask import jsonify, request
+from jsonpickle import encode
 from flask_login import login_required
 from werkzeug.local import LocalProxy
 import database as db
 from helper import throw_error, get_current_user
 
 
-# @login_required
 def require_permission(permission: db.Permission,
                        get_user_func: LocalProxy = get_current_user):  # TODO Require login here rather than on all functions
     """
@@ -34,7 +34,6 @@ def require_permission(permission: db.Permission,
     return permission_wrapper
 
 
-# @login_required
 def admin_required(func, get_user=get_current_user):
     @login_required
     @wraps(func)
@@ -47,3 +46,11 @@ def admin_required(func, get_user=get_current_user):
         return func(*args, **kwargs)
 
     return admin_wrapper
+
+
+def get_json_response(obj, max_depth: int = 2):
+    return jsonify(encode(obj, unpicklable=False, max_depth=max_depth))
+
+
+def wants_html():
+    return 'text/html' in request.accept_mimetypes
