@@ -97,9 +97,10 @@ def track_file(track_id: int, download=False):
 def playlists():
     playlists = db.get_playlists_by_user(get_current_user()) or []
 
-    test_tracks = db.get_album_by_name("King Crimson", "Red").tracks + db.get_album_by_name("Yes", "Fragile").tracks
-
-    return render_template('playlists.html', playlists=playlists, test_tracks=test_tracks)
+    if wants_html():
+        return render_template('playlists.html', playlists=playlists)
+    else:
+        return get_json_response(playlists)
 
 
 @pl.route('/<int:playlist_id>')
@@ -108,9 +109,13 @@ def playlist(playlist_id: int):
     import pmv
     playlist = db.get_playlist_by_id(playlist_id)
 
-    return render_template('table.html', tracks=playlist.tracks, title=playlist.name, settings=pmv.settings,
-                           is_playlist=True, key=playlist_id,
-                           totalSize=reduce(operator.add, [track.size for track in playlist.tracks]))
+    if wants_html():
+        return render_template('table.html', tracks=playlist.tracks, title=playlist.name, settings=pmv.settings,
+                               is_playlist=True, key=playlist_id,
+                               totalSize=reduce(operator.add, [track.size for track in playlist.tracks]))
+    else:
+        tracks = [*map(lambda x: x.id, playlist.tracks)]
+        return get_json_response(playlist, max_depth=1, append={'tracks': tracks})
 
 
 @pl.route('/add/<string:name>', methods=['POST'])
@@ -184,5 +189,8 @@ def search(query=None, for_artists=True, for_albums=True, for_tracks=True):
     if for_tracks:
         tracks = db.get_tracks_by_name(query)
 
-    return render_template('table.html', artists=artists, albums=albums, tracks=tracks, title=query,
-                           is_search=True, prev=request.referrer)
+    if wants_html():
+        return render_template('table.html', artists=artists, albums=albums, tracks=tracks, title=query,
+                               is_search=True, prev=request.referrer)
+    else:
+        return get_json_response({'artists': artists, 'albums': albums, 'tracks': tracks}, max_depth=3)
