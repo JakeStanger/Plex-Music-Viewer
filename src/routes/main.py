@@ -1,6 +1,6 @@
 from flask import render_template, redirect, url_for, Blueprint
 import database as db
-from .decorators import admin_required
+from .helpers import admin_required
 
 bp = Blueprint('main', __name__)
 

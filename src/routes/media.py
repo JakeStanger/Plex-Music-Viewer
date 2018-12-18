@@ -6,7 +6,7 @@ from flask import Blueprint, send_file
 
 # from pmv import settings
 import database as db
-from .decorators import require_permission
+from .helpers import require_permission
 from .music import bp as ms, pl, al
 from json import dumps
 

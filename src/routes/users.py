@@ -4,7 +4,7 @@ from flask import Blueprint, request, redirect, url_for, flash, render_template
 from flask_login import login_user, logout_user, login_required
 from werkzeug.security import check_password_hash, generate_password_hash
 import database as db
-from .decorators import admin_required
+from .helpers import admin_required
 
 bp = Blueprint('users', __name__)
 
