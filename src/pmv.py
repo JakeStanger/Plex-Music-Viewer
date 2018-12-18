@@ -123,10 +123,6 @@ def request_loader(req):
     api_key = req.headers.get('Authorization')
     if api_key:
         api_key = api_key.replace('Basic ', '', 1)
-        try:
-            api_key = base64.b64decode(api_key)
-        except TypeError:
-            pass
         user = db.get_user_by_api_key(api_key)
         if user:
             return user
