@@ -1,3 +1,4 @@
+websocket-client
 jsonpickle
 mutagen
 flask-sqlalchemy
