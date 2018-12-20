@@ -7,9 +7,17 @@ from .models import User, Artist, Album, Track, Playlist
 db = database()
 
 
-def add_single(obj):
-    db.session.add(obj)
+def commit():
+    """Commit the currently staged changes
+    to the database."""
     db.session.commit()
+
+
+def add_single(obj):
+    """Add a single object to the database
+    and immediately commit."""
+    db.session.add(obj)
+    commit()
 
 
 def get_users(include_deleted: bool = False):
@@ -81,13 +89,13 @@ def get_user(param: Union[str, int]) -> User:
 def delete_user_by_id(key: int, restore=False):
     user: User = get_user_by_id(key)
     user.is_deleted = not restore
-    db.session.commit()
+    commit()
 
 
 def delete_user_by_username(username: str, restore=False):
     user: User = get_user_by_username(username)
     user.is_deleted = not restore
-    db.session.commit()
+    commit()
 
 
 def get_artists() -> List[Artist]:
