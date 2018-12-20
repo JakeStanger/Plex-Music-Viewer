@@ -44,14 +44,14 @@ def format_duration(duration: int) -> str:
     return str(minutes) + ":" + ('0' if seconds < 10 else '') + str(seconds)
 
 
-def get_sort_name(string: str) -> str:
+def get_sort_name(name: str) -> str:
     to_remove = ['The', 'A']
 
     for word in to_remove:
-        if string.startswith(word + ' '):
-            string = string[len(word + ' '):]
+        if name.startswith(word + ' '):
+            name = name[len(word + ' '):]
 
-    return string
+    return name
 
 
 def get_numbers(value: str) -> int:
@@ -62,9 +62,9 @@ def generate_artist_hash(name: str) -> int:
     return get_numbers(md5(name.encode('utf8')).hexdigest())
 
 
-def generate_album_hash(name: str, artist: str) -> int:
-    return get_numbers(md5(('%s%s' % (name, artist)).encode('utf8')).hexdigest())
+def generate_album_hash(name: str, artist_name: str) -> int:
+    return get_numbers(md5(('%s%s' % (name, artist_name)).encode('utf8')).hexdigest())
 
 
-def generate_track_hash(name: str, album: str, artist: str, relative_path: str) -> int:
-    return get_numbers(md5(('%s%s%s%s' % (name, album, artist, relative_path)).encode('utf8')).hexdigest())
+def generate_track_hash(name: str, album_name: str, artist_name: str, relative_path: str) -> int:
+    return get_numbers(md5(('%s%s%s%s' % (name, album_name, artist_name, relative_path)).encode('utf8')).hexdigest())
