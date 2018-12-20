@@ -79,7 +79,7 @@ class Artist(db.Model):
     tracks: list = db.relationship('Track', back_populates='artist')
 
     def __repr__(self):
-        return "<%d - %s>" % (self.id, self.name)
+        return "<%d - %s>" % (self.id or -1, self.name)
 
 
 class Album(db.Model):
@@ -108,7 +108,7 @@ class Album(db.Model):
     tracks: list = db.relationship('Track', back_populates='album')
 
     def __repr__(self):
-        return "<%d - %s>" % (self.id, self.name)
+        return "<%d - %s>" % (self.id or -1, self.name)
 
     def total_size(self):
         pass
@@ -154,7 +154,7 @@ class Track(db.Model):
     playlists = db.relationship('Playlist', secondary=playlist_track, back_populates='tracks')
 
     def __repr__(self):
-        return "<%d - %s>" % (self.id, self.name)
+        return "<%d - %s>" % (self.id or -1, self.name)
 
 
 class Playlist(db.Model):
