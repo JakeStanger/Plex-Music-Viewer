@@ -28,6 +28,23 @@ def base_key(key: str) -> int:
     return int(path.basename(key))
 
 
+def add_plex_artist(artist: PlexArtist, albums: List[PlexAlbum] = None, artist_hash=None):
+    if not albums:
+        albums = artist.albums()
+    if not artist_hash:
+        artist_hash = helper.generate_artist_hash(artist.title)
+
+    artist = Artist(name=artist.title,
+                    name_sort=artist.titleSort,
+                    album_count=len(albums),
+                    plex_id=base_key(artist.key),
+                    plex_thumb=base_key(artist.thumb) if artist.thumb else None,
+                    hash=artist_hash)
+    print(artist)
+
+    db.session.add(artist)
+
+
 def populate_db_from_plex():
     import pmv
 
@@ -42,12 +59,7 @@ def populate_db_from_plex():
 
         artist_query = get_artist_by_hash(artist_hash)
         if not artist_query:
-            db.session.add(Artist(name=artist.title,
-                                  name_sort=artist.titleSort,
-                                  album_count=len(albums),
-                                  plex_id=base_key(artist.key),
-                                  plex_thumb=base_key(artist.thumb) if artist.thumb else None,
-                                  hash=artist_hash))
+            add_plex_artist(artist, albums, artist_hash)
             artist_query = get_artist_by_hash(artist_hash)
         for album in albums:
             print('┣ ' + album.title)
