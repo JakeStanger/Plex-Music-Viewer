@@ -25,7 +25,7 @@ def has_no_empty_params(rule):
 @admin_required
 def admin():
     import pmv
-    routes = [rule for rule in pmv.app.url_map.iter_rules()]
+    routes = sorted([rule for rule in pmv.app.url_map.iter_rules()], key=lambda rule: rule.endpoint)
 
     return render_template('admin.html', title="Admin", users=db.get_users(), routes=routes)
 
