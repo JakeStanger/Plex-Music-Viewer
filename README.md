@@ -6,6 +6,8 @@ music library.
 - Python dependencies can be installed using 
 `pip -r requirements.txt`.
 Each one and its use is included below.
+- Depending on your database engine you may need to install further dependencies:
+    - MySQL: `# apt install libmysqlclient-dev` etc...
 - For optional bittorrent support `libtorrent` with python 
 bindings support (`libtorrent-rasterbar`) is required.
 You will have to find the correct package for your OS.
