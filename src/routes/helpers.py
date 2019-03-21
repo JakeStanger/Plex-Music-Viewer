@@ -1,6 +1,6 @@
 import json
 from functools import wraps
-from flask import jsonify, request
+from flask import jsonify, request, make_response
 from jsonpickle import encode
 from flask_login import login_required
 from werkzeug.local import LocalProxy
@@ -56,7 +56,10 @@ def get_json_response(obj, max_depth: int = 2, append: dict = None):
         for key in append:
             encoded[key] = append[key]
         encoded = encode(encoded, unpicklable=False, max_depth=2)
-    return jsonify(encoded)
+
+    response = make_response(encoded, 200)
+    response.mimetype = 'application/json'
+    return response
 
 
 def wants_html():
