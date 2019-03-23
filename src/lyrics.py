@@ -26,7 +26,7 @@ def get_song_lyrics(track: Track) -> str:
         g = genius.Genius(pmv.settings['genius_api'])
 
         try:
-            song = g.search_song(track.name, artist_name=track.artist_name)
+            song = g.search_song(track.name, artist=track.artist_name)
         except ConnectionError:
             return 'Failed to reach Genius.'
 
@@ -36,7 +36,9 @@ def get_song_lyrics(track: Track) -> str:
         if not os.path.exists('lyrics'):
             os.makedirs('lyrics')
 
-        song.save_lyrics(filename, overwrite=True, binary_encoding=True)
+        with open(filename, 'w') as f:
+            f.write(song.lyrics)
+
         return song.lyrics
     else:
         return 'Genius API key not set.'
