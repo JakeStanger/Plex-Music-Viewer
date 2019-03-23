@@ -3,7 +3,7 @@ import operator
 from functools import reduce
 from urllib.parse import unquote
 
-from flask import render_template, redirect, url_for, Blueprint, send_file, request, flash
+from flask import render_template, redirect, url_for, Blueprint, send_file, request, flash, make_response
 from magic import Magic
 
 import database as db
@@ -154,16 +154,22 @@ def add_to_playlist(track_id: int, playlist_id: int = None, playlist_name: str =
     return redirect(request.referrer)
 
 
-@tr.route('/<int:track_id>/lyrics', methods=['POST'])
+@tr.route('/<int:track_id>/lyrics', methods=['GET', 'POST'])
 @require_permission(db.Permission.music_can_edit)
 def edit_lyrics(track_id: int):
     import lyrics
     current_track = db.get_track_by_id(track_id)
 
-    lyrics.update_lyrics(current_track, request.form.get('lyrics'))
+    if request.method == "POST":
+        lyrics.update_lyrics(current_track, request.form.get('lyrics'))
 
-    flash('Lyrics successfully updated', category='success')
-    return redirect(url_for('music.track', track_id=track_id))
+        flash('Lyrics successfully updated', category='success')
+        return redirect(url_for('music.track', track_id=track_id))
+
+    lyrics = lyrics.get_song_lyrics(current_track)
+    response = make_response(lyrics, 200)
+    response.mimetype = "text/plain"
+    return response
 
 
 @tr.route('/<int:track_id>/metadata', methods=['POST'])
