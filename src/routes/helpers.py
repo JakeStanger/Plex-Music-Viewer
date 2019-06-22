@@ -9,7 +9,7 @@ from helper import throw_error, get_current_user
 
 
 def require_permission(permission: db.Permission,
-                       get_user_func: LocalProxy = get_current_user):  # TODO Require login here rather than on all functions
+                       get_user_func: LocalProxy = get_current_user):
     """
     Decorating a function with this ensures the current
     user has db.Permission to load to page.
