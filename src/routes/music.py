@@ -156,7 +156,7 @@ def add_to_playlist(track_id: int, playlist_id: int = None, playlist_name: str =
 
 @tr.route('/<int:track_id>/lyrics', methods=['GET', 'POST'])
 @require_permission(db.Permission.music_can_edit)
-def edit_lyrics(track_id: int):
+def lyrics(track_id: int):
     import lyrics
     current_track = db.get_track_by_id(track_id)
 
