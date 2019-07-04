@@ -10,7 +10,7 @@ def load_and_dump(res):
 def make_request(url):
     start = timer()
     base_url = 'http://localhost:5000'
-    headers = {"Authorization": "Basic 5gwae1JAjGOOnWts3sdXBOfLyO6CwrCmVvL8bXE10DqeL1w9fs8LOX8EzHy7a16S",
+    headers = {"Authorization": "Basic",
                "Accept": "application/json"}
     print(url)
     print(loads(get(base_url + url, headers=headers).content))
