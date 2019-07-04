@@ -122,11 +122,13 @@ def _fetch_from_local(album: Album, width: int) -> Optional[str]:
     found in a directory containing tracks from the
     given album, assuming one is found.
     """
+    import pmv
+
     valid_images = [".jpg", ".gif", ".png", ".tga"]
 
     visited_paths = []
     for track in album.tracks:
-        folder = os.path.dirname(track.downloadURL)
+        folder = pmv.settings['music_library'] + os.path.dirname(track.download_url)
 
         if folder in visited_paths:
             continue
